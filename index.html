@@ -9,14 +9,14 @@
   3. 学习进度会自动存在浏览器的 localStorage 里，关掉网页、刷新页面都不会丢。
 
   【三个功能】
-  ① 单词闯关：50 个初二核心词，每关 5 个；卡片可翻面看中文+例句；点 🔊 听发音；
+  ① 单词闯关：150 个初二/初三核心词，每关 5 个；卡片可翻面看中文+例句；点 🔊 听发音；
               答对 → 标记"已掌握"；答错 → 自动进错题本；有进度条 + 过关庆祝动画 + 音效。
-  ② 语法闯关：10 道选择题（每关 5 题），选错立刻讲逻辑，同样自动收进错题本。
+  ② 语法闯关：40 道选择题（每关 5 题），选错立刻讲逻辑，同样自动收进错题本。
   ③ 错题本　：自动收集所有答错的题（题目 / 我选的答案 / 正确答案 / 解析 /
               错误次数 / 最后复习时间 / 掌握程度 0-3⭐），按错误次数从多到少排序；
               "开始复习"进入翻卡模式：正面题目，翻面答案+解析，
               "我记住了"让掌握度 +1，"还不熟"让错误次数 +1。
-  ④ 听歌学英语：3 首英文歌的歌词 + 中文翻译（点歌名展开）。
+  ④ 听歌学英语：5 首英文歌的歌词 + 中文翻译（点歌名展开）。
   ⑤ 打卡日历　：单次专注 15 分钟倒计时（圆环 + 剩余时间），自动累计专注时长；
               日历上标出哪天有学习、哪天满 15 分钟，还能看累计打卡天数和本月打卡天数。
   ⑥ 周末战报　：顶部一键生成战报（本周末掌握词数 / 本周末新增错题 / 专注时长 /
@@ -24,6 +24,8 @@
   ⑦ 错题打印　：错题本里「🖨 导出打印版」，生成「题目页 + 答案解析页」的复习卷，
               调浏览器打印就能拿到纸质的。
   ⑧ 存档备份　：页面最底部「📤 导出存档 / 📥 导入存档」，换设备也不丢进度。
+  ⑨ 周末唤醒　：导航栏「🧠 周末唤醒」，按艾宾浩斯曲线挑出「超 2 天没复习 + 没完全掌握」
+              的错题（最多 10 道、错得多的先来），直接进入翻卡复习。
 
   【技术说明】
   · 纯原生 HTML + CSS + JavaScript，零框架、零依赖、零外部文件；
@@ -523,7 +525,8 @@ nav.tabs button.active{
     <h1>🌸 英语学习小站 🌸</h1>
     <div class="sub">单次专注 15 分钟 · 不用死记硬背，用逻辑记单词 ✨</div>
     <div class="stat-bar">
-      <div class="stat-pill">已掌握单词 <b id="statMastered">0</b>/50</div>
+      <!-- 【升级说明】分母从写死的 50 改成 <span>，由 JS 按 WORDS.length 自动填 -->
+      <div class="stat-pill">已掌握单词 <b id="statMastered">0</b>/<span id="statTotalWords">150</span></div>
       <div class="stat-pill">错题本 <b id="statWrong">0</b> 条</div>
       <!-- 【新增】一键生成本周末学习战报并复制到剪贴板 -->
       <button class="stat-btn" id="btnReport" title="生成本周末学习战报并复制">📊 生成周末战报</button>
@@ -539,6 +542,8 @@ nav.tabs button.active{
     <button data-page="song">🎵 听歌学英语</button>
     <!-- 【新增】打卡页：15 分钟倒计时 + 打卡日历 -->
     <button data-page="checkin">⏱ 打卡</button>
+    <!-- 【升级说明】「周末记忆唤醒」：不是普通标签页，点它会先进错题本、再自动开始唤醒复习 -->
+    <button data-page="wrong" data-action="wake">🧠 周末唤醒</button>
   </nav>
 
   <main>
@@ -549,7 +554,7 @@ nav.tabs button.active{
       <div class="card">
         <div class="quiz-head">
           <div class="level-tag" id="wordLevelTag">第 1 关</div>
-          <div class="progress-text" id="wordProgressText">0 / 50</div>
+          <div class="progress-text" id="wordProgressText">0 / 150</div>
         </div>
         <div class="progress-wrap">
           <div class="progress"><div class="bar" id="wordBar"></div></div>
@@ -589,7 +594,7 @@ nav.tabs button.active{
       <div class="card">
         <div class="quiz-head">
           <div class="level-tag" id="gLevelTag">第 1 关</div>
-          <div class="progress-text" id="gProgressText">0 / 10</div>
+          <div class="progress-text" id="gProgressText">0 / 40</div>
         </div>
         <div class="progress-wrap">
           <div class="progress"><div class="bar" id="gBar"></div></div>
@@ -623,7 +628,7 @@ nav.tabs button.active{
       <!-- 翻卡复习区（点"开始复习"才出现） -->
       <div class="review-area hidden" id="reviewArea">
         <div class="tip-row">
-          <div style="font-weight:bold;">🔁 翻卡复习中 <span id="reviewIdx">1</span> / <span id="reviewTotal">1</span></div>
+          <div style="font-weight:bold;"><span id="reviewModeTag">🔁 翻卡复习中</span> <span id="reviewIdx">1</span> / <span id="reviewTotal">1</span></div>
           <button class="btn btn-ghost" id="btnExitReview">退出复习</button>
         </div>
         <div class="flip-card" id="reviewCard">
@@ -753,7 +758,7 @@ nav.tabs button.active{
    例句尽量结合数学和历史，配合"逻辑强、喜欢历史"的使用者
    ===================================================================================== */
 
-/* ---------- 50 个初二核心单词：w=英文, z=中文, e=英文例句, ez=例句中文翻译 ---------- */
+/* ---------- 150 个初二/初三核心单词：w=英文, z=中文, e=英文例句, ez=例句中文翻译 ---------- */
 const WORDS = [
   { w:"ancient",    z:"古代的",     e:"In ancient Greece, people used geometry to measure land.",      ez:"在古希腊，人们用几何学来丈量土地。" },
   { w:"century",    z:"世纪",       e:"The 18th century was full of new math discoveries.",            ez:"18 世纪充满了新的数学发现。" },
@@ -804,10 +809,114 @@ const WORDS = [
   { w:"compare",    z:"比较",       e:"Compare the two answers before you choose one.",                ez:"选择之前先比较这两个答案。" },
   { w:"explain",    z:"解释",       e:"Can you explain how you got this result?",                      ez:"你能解释一下你是怎么得到这个结果的吗？" },
   { w:"understand", z:"理解",       e:"If you understand the rule, you needn't memorize it.",          ez:"如果你理解了规则，就不需要背它。" },
-  { w:"remember",   z:"记住",       e:"We remember stories much better than lists of words.",          ez:"故事比单词表更容易被记住。" }
+  { w:"remember",   z:"记住",       e:"We remember stories much better than lists of words.",          ez:"故事比单词表更容易被记住。" },
+
+  /* ============================================================
+     【升级说明】以下 +100 个单词：初二/初三核心词，例句结合数学、历史或生活场景
+     ============================================================ */
+  { w:"achieve",    z:"实现；达到", e:"You achieve a goal step by step, just like solving an equation.", ez:"你一步步实现目标，就像解方程一样。" },
+  { w:"advantage",  z:"优势；好处", e:"Knowing history gives you an advantage in understanding today.",  ez:"懂历史会让你在理解今天时更有优势。" },
+  { w:"advice",     z:"建议",       e:"My teacher gave me advice on planning the weekend.",              ez:"老师给了我安排周末的建议。" },
+  { w:"afford",     z:"买得起",     e:"We can't afford a new computer this year.",                       ez:"今年我们买不起新电脑。" },
+  { w:"agree",      z:"同意",       e:"I agree with your answer because every step is logical.",         ez:"我同意你的答案，因为每一步都合乎逻辑。" },
+  { w:"allow",      z:"允许",       e:"The rule allows us five minutes to check our work.",              ez:"这条规则允许我们用五分钟检查答案。" },
+  { w:"appear",     z:"出现；显得", e:"A pattern appears when you list the numbers in order.",           ez:"把数字按顺序排列，规律就出现了。" },
+  { w:"arrive",     z:"到达",       e:"The train will arrive at eight o'clock.",                         ez:"火车将在八点到达。" },
+  { w:"avoid",      z:"避免",       e:"Check the signs to avoid small mistakes.",                        ez:"检查一下正负号，避免小错误。" },
+  { w:"balance",    z:"平衡",       e:"Keep both sides of the scale in balance.",                        ez:"让天平两边保持平衡。" },
+  { w:"believe",    z:"相信",       e:"I believe your result because I can follow your steps.",          ez:"我相信你的结果，因为我能看懂你的步骤。" },
+  { w:"borrow",     z:"借入",       e:"May I borrow your ruler for a minute?",                           ez:"我能借你的尺子用一下吗？" },
+  { w:"brave",      z:"勇敢的",     e:"The brave soldier protected the whole village.",                  ez:"那位勇敢的士兵保护了整个村子。" },
+  { w:"breathe",    z:"呼吸",       e:"Slow down and breathe when a problem looks hard.",                ez:"题目看起来很难时，慢下来，深呼吸。" },
+  { w:"bright",     z:"明亮的；聪明的", e:"She is bright enough to find the shortcut.",                  ez:"她足够聪明，能找到捷径。" },
+  { w:"cause",      z:"导致；原因", e:"One small change can cause a very different result.",             ez:"一个小小的变化可能导致完全不同的结果。" },
+  { w:"celebrate",  z:"庆祝",       e:"We celebrate the end of a hard week.",                            ez:"我们庆祝辛苦一周的结束。" },
+  { w:"challenge",  z:"挑战",       e:"This question is a challenge, but so is every puzzle.",            ez:"这道题是个挑战，但每个谜题都是。" },
+  { w:"choice",     z:"选择",       e:"Every choice has a cost, just like every equation has a price.",  ez:"每个选择都有代价，就像每个方程都有代价一样。" },
+  { w:"climb",      z:"攀爬",       e:"They climb the hill to see the old city wall.",                   ez:"他们爬上山去看古城墙。" },
+  { w:"collect",    z:"收集",       e:"Historians collect old letters to learn about daily life.",       ez:"历史学家收集旧信件来了解日常生活。" },
+  { w:"common",     z:"常见的",     e:"It is common to forget a word you never use.",                    ez:"忘记一个从没用过的单词，是很常见的事。" },
+  { w:"complete",   z:"完成的；完成", e:"Complete the table before you draw the graph.",                 ez:"画图之前先把表格填完。" },
+  { w:"consider",   z:"考虑",       e:"Consider both answers before you decide.",                        ez:"决定之前先考虑两个答案。" },
+  { w:"continue",   z:"继续",       e:"If you continue practicing, the speed will come.",               ez:"如果你继续练，速度自然会来。" },
+  { w:"control",    z:"控制",       e:"A good student controls the time, not the other way round.",     ez:"好学生控制时间，而不是被时间控制。" },
+  { w:"correct",    z:"正确的；改正", e:"Correct the mistake at once, before it becomes a habit.",      ez:"趁错误还没变成习惯，立刻改正它。" },
+  { w:"courage",    z:"勇气",       e:"It takes courage to say 'I don't know'.",                          ez:"说出「我不知道」是需要勇气的。" },
+  { w:"create",     z:"创造",       e:"The artist and the mathematician both create patterns.",          ez:"艺术家和数学家都在创造图案。" },
+  { w:"daily",      z:"日常的",     e:"Daily practice beats one long night of study.",                   ez:"日常的小练习胜过熬一个通宵。" },
+  { w:"danger",     z:"危险",       e:"The old bridge is in danger after the heavy rain.",               ez:"大雨之后，那座老桥很危险。" },
+  { w:"decide",     z:"决定",       e:"Decide the method first, then calculate.",                         ez:"先决定方法，再开始计算。" },
+  { w:"depend",     z:"取决于",     e:"The answer depends on which number you start with.",              ez:"答案取决于你从哪个数开始。" },
+  { w:"describe",   z:"描述",       e:"Describe the shape in words before you draw it.",                 ez:"画之前先用语言描述这个图形。" },
+  { w:"develop",    z:"发展；培养", e:"The city developed along the river.",                             ez:"这座城市沿着河流发展起来。" },
+  { w:"difference", z:"差别",       e:"The difference between seven and three is four.",                 ez:"7 和 3 的差是 4。" },
+  { w:"difficult",  z:"困难的",     e:"A difficult problem is just an easy problem with more steps.",    ez:"难题不过是一个步骤更多的简单题。" },
+  { w:"direct",     z:"直接的",     e:"There is a direct path between the two ideas.",                   ez:"这两个想法之间有一条直接的路径。" },
+  { w:"discuss",    z:"讨论",       e:"Let's discuss why the two methods give the same answer.",         ez:"我们来讨论一下，为什么两种方法得到同一个答案。" },
+  { w:"divide",     z:"分开；除",   e:"Divide the class into groups of four.",                           ez:"把全班分成四人一组。" },
+  { w:"doubt",      z:"怀疑",       e:"When in doubt, check your work from the start.",                  ez:"有疑问时，从头检查你的解答。" },
+  { w:"effort",     z:"努力",       e:"Effort counts more than speed.",                                  ez:"努力比速度更重要。" },
+  { w:"empty",      z:"空的",       e:"An empty box weighs nothing, so the answer is zero.",             ez:"空盒子没有重量，所以答案是零。" },
+  { w:"encourage",  z:"鼓励",       e:"My sister encourages me to read English aloud.",                  ez:"姐姐鼓励我大声读英语。" },
+  { w:"enough",     z:"足够的",     e:"Do we have enough time for one more level?",                      ez:"我们还有足够的时间再闯一关吗？" },
+  { w:"example",    z:"例子",       e:"Give an example; a rule without one is only a guess.",            ez:"举个例子；没有例子的规则只是猜测。" },
+  { w:"except",     z:"除了……之外", e:"Everyone finished except the boy who lost his pen.",             ez:"除了那个丢了笔的男孩，大家都完成了。" },
+  { w:"expect",     z:"期待；预料", e:"I expect a positive answer, because both numbers are positive.",  ez:"我预料结果是正的，因为两个数都是正数。" },
+  { w:"experience", z:"经验；经历", e:"Experience is what you get after making mistakes.",               ez:"经验就是你犯错之后得到的东西。" },
+  { w:"famous",     z:"著名的",     e:"This famous bridge was built a thousand years ago.",              ez:"这座著名的桥是一千年前建造的。" },
+  { w:"finally",    z:"最后；终于", e:"Finally, check the answer against the question.",                 ez:"最后，把答案和题目对一遍。" },
+  { w:"follow",     z:"跟随；遵循", e:"Follow the steps and the answer will follow you.",                ez:"跟着步骤走，答案自然会跟着你。" },
+  { w:"forget",     z:"忘记",       e:"Write it down, or you will forget it by Monday.",                 ez:"把它写下来，否则到周一你就忘了。" },
+  { w:"forgive",    z:"原谅",       e:"She forgave her friend for the small mistake.",                   ez:"她原谅了朋友的小错误。" },
+  { w:"form",       z:"形式；形成", e:"Water takes a different form in every cup.",                      ez:"水在每只杯子里都呈现不同的形状。" },
+  { w:"future",     z:"未来",       e:"The future depends on what you do this weekend.",                 ez:"未来取决于你这个周末做了什么。" },
+  { w:"gather",     z:"聚集；收集", e:"People gather in the square to watch the stars.",                 ez:"人们聚集在广场上看星星。" },
+  { w:"general",    z:"一般的；总的", e:"In general, a bigger number needs more steps.",                 ez:"一般来说，数越大，需要的步骤越多。" },
+  { w:"guide",      z:"指导；引导", e:"The old map guides us through the town.",                         ez:"这张旧地图引导我们穿过小镇。" },
+  { w:"habit",      z:"习惯",       e:"A habit is a shortcut that your brain builds.",                   ez:"习惯是大脑为自己修的捷径。" },
+  { w:"health",     z:"健康",       e:"Health comes before marks.",                                      ez:"健康比分数更重要。" },
+  { w:"honesty",    z:"诚实",       e:"Honesty makes mistakes easier to fix.",                           ez:"诚实能让错误更容易被修好。" },
+  { w:"hope",       z:"希望",       e:"I hope the weekend is longer than the homework.",                 ez:"我希望周末比作业长。" },
+  { w:"hurry",      z:"匆忙",       e:"Don't hurry; a rushed sum is usually a wrong sum.",               ez:"别着急，算得太快往往会算错。" },
+  { w:"impossible", z:"不可能的",   e:"Nothing is impossible if you cut it into small steps.",           ez:"只要拆成小步骤，没有什么是做不到的。" },
+  { w:"include",    z:"包括",       e:"The total includes the service fee.",                             ez:"总价里包含了服务费。" },
+  { w:"instead",    z:"代替；反而", e:"Instead of memorizing, look for the pattern.",                    ez:"与其死记，不如去找规律。" },
+  { w:"introduce",  z:"介绍；引入", e:"Let me introduce the new rule with an example.",                  ez:"让我用一个例子来介绍这条新规则。" },
+  { w:"invent",     z:"发明",       e:"Who invented this simple tool?",                                  ez:"这个简单的工具是谁发明的？" },
+  { w:"journey",    z:"旅程",       e:"A journey of a thousand miles begins with one step.",             ez:"千里之行，始于足下。" },
+  { w:"judge",      z:"判断；评判", e:"Judge the answer by its steps, not by your feeling.",             ez:"判断答案要看步骤，而不是凭感觉。" },
+  { w:"language",   z:"语言",       e:"Math is a language with almost no exceptions.",                   ez:"数学是一门几乎没有例外的语言。" },
+  { w:"lead",       z:"导致；带领", e:"One wrong sign can lead to a completely wrong answer.",           ez:"一个符号错了，就可能导致完全错误的答案。" },
+  { w:"learn",      z:"学习",       e:"We learn faster when we keep asking why.",                        ez:"当我们不停追问「为什么」时，学得更快。" },
+  { w:"lend",       z:"借出",       e:"He lent me his notes for the weekend.",                           ez:"他把笔记借给我过周末。" },
+  { w:"level",      z:"水平；关卡", e:"Each level adds exactly one new idea.",                           ez:"每一关正好增加一个新知识点。" },
+  { w:"listen",     z:"听",         e:"Listen twice and speak once.",                                    ez:"多听两遍再开口。" },
+  { w:"lucky",      z:"幸运的",     e:"A lucky guess is not a method.",                                  ez:"运气猜对不算方法。" },
+  { w:"manage",     z:"设法完成；管理", e:"She managed to finish the last question.",                   ez:"她设法做完了最后一道题。" },
+  { w:"matter",     z:"要紧；事情", e:"It doesn't matter how slow you are, only that you finish.",       ez:"慢一点没关系，重要的是做完。" },
+  { w:"method",     z:"方法",       e:"A good method saves half the time.",                              ez:"好方法能省下一半时间。" },
+  { w:"mistake",    z:"错误",       e:"Every mistake is a clue about what you missed.",                  ez:"每个错误都是关于你漏掉了什么的线索。" },
+  { w:"nature",     z:"自然；本性", e:"Nature follows rules too; we just write them as formulas.",       ez:"大自然也遵守规则，我们只是把它写成公式。" },
+  { w:"notice",     z:"注意到",     e:"Notice the pattern: 2, 4, 8, 16 doubles each time.",             ez:"注意这个规律：2、4、8、16 每次翻倍。" },
+  { w:"offer",      z:"提供",       e:"The teacher offered a hint, not the answer.",                     ez:"老师给了个提示，而不是答案。" },
+  { w:"opinion",    z:"观点",       e:"Form an opinion only after you see the facts.",                   ez:"看过事实之后再形成观点。" },
+  { w:"order",      z:"顺序；命令", e:"Put the numbers in order and the pattern shows up.",              ez:"把数字排好序，规律就出现了。" },
+  { w:"ordinary",   z:"普通的",     e:"An ordinary day can still teach you something.",                  ez:"普通的一天也能教会你一些东西。" },
+  { w:"own",        z:"自己的",     e:"Write the answer in your own words.",                             ez:"用你自己的话写出答案。" },
+  { w:"pain",       z:"疼痛；痛苦", e:"Learning a new skill always comes with some pain.",              ez:"学一项新技能，总会伴随一些痛苦。" },
+  { w:"perhaps",    z:"也许",       e:"Perhaps the answer is simpler than it looks.",                    ez:"也许答案比看上去简单。" },
+  { w:"plan",       z:"计划",       e:"Plan the weekend, then enjoy it.",                                ez:"先计划好周末，再好好享受。" },
+  { w:"practice",   z:"练习",       e:"Practice is the only bridge between knowing and doing.",          ez:"练习是「知道」和「做到」之间唯一的桥。" },
+  { w:"prepare",    z:"准备",       e:"Prepare your questions before the lesson.",                       ez:"上课前先把问题准备好。" },
+  { w:"prove",      z:"证明",       e:"Can you prove the rule with two examples?",                       ez:"你能用两个例子证明这条规则吗？" },
+  { w:"provide",    z:"提供",       e:"The chart provides all the data you need.",                       ez:"这张图表提供了你需要的全部数据。" },
+  { w:"purpose",    z:"目的",       e:"Every paragraph has a purpose.",                                  ez:"每一段都有它的目的。" },
+  { w:"quite",      z:"相当；十分", e:"This level is quite easy if you know the pattern.",              ez:"如果你懂了这个规律，这一关相当简单。" },
+  { w:"raise",      z:"举起；提高", e:"Raise your hand if you can explain why.",                         ez:"如果你能解释原因，就举手。" },
+  { w:"reach",      z:"到达；够到", e:"You reach the goal one step at a time.",                          ez:"一步一个脚印，就能到达目标。" }
 ];
 
-/* ---------- 10 道初二语法选择题：q=题目, opts=三个选项, ans=正确选项下标, ana=幽默逻辑解析 ---------- */
+/* ---------- 40 道初二/初三语法选择题：q=题目, opts=三个选项, ans=正确选项下标, ana=幽默逻辑解析 ---------- */
 const GRAMMAR = [
   { q:"She ______ to school by bike every day.",
     opts:["go","goes","going"], ans:1,
@@ -847,10 +956,134 @@ const GRAMMAR = [
 
   { q:"The homework ______ by the students yesterday.",
     opts:["finished","was finished","finishes"], ans:1,
-    ana:"作业是「被」完成的，而且时间是 yesterday，所以用一般过去时的被动语态 was + 过去分词。相当于把主语从「做事的人」换成「被做的事」。" }
+    ana:"作业是「被」完成的，而且时间是 yesterday，所以用一般过去时的被动语态 was + 过去分词。相当于把主语从「做事的人」换成「被做的事」。" },
+
+  /* ============================================================
+     【升级说明】以下 +30 道题：初二/初三核心语法。
+     解析一律用逻辑推导或数学类比，不出现「这是规定」「背下来」这类话术。
+     ============================================================ */
+  { q:"I ______ this book twice, so I can tell you the ending.",
+    opts:["read","have read","am reading"], ans:1,
+    ana:"twice 是「到现在为止的次数」，动作从过去一直结算到此刻，所以用现在完成时 have + 过去分词。像累计求和：过去的每一次都要加进现在的总和里。" },
+
+  { q:"He ______ to Beijing last summer.",
+    opts:["has been","went","has gone"], ans:1,
+    ana:"last summer 是一个已经结束的时间点，像数轴上标好的一个定点。现在完成时要求「时间还没结束」，所以这里只能用一般过去时 went。" },
+
+  { q:"She asked me ______.",
+    opts:["where did I live","where I lived","where I did live"], ans:1,
+    ana:"宾语从句要用陈述语序：把助动词 did 收回去，让动词自己变过去式。像把疑问的式子化简成普通等式——结构变了，信息不能变。" },
+
+  { q:"Tom said that he ______ busy the next day.",
+    opts:["is","was","will be"], ans:1,
+    ana:"主句 said 是过去时，从句要往回退一步：is → was。相当于同乘一个负号，括号里每一项都要跟着变号。" },
+
+  { q:"This is the bike ______ I bought last week.",
+    opts:["who","which","whose"], ans:1,
+    ana:"先行词 bike 是「物」，用 which；who 只服务人。关系词和先行词要配对，就像函数和它的定义域必须匹配。" },
+
+  { q:"The girl ______ hair is very long is my cousin.",
+    opts:["who","which","whose"], ans:2,
+    ana:"空后面紧跟的是名词 hair 而不是动词，说明缺的是「谁的」这个所有格，用 whose。空后接名词用 whose，接动词才轮到 who / which。" },
+
+  { q:"______ I was walking home, it began to rain.",
+    opts:["While","Until","Because"], ans:0,
+    ana:"走路和下雨是同时进行的两件事，while 表示「在……期间」。就像两条平行线在同一段区间里同时存在。" },
+
+  { q:"He was tired, ______ he still finished the work.",
+    opts:["because","so","but"], ans:2,
+    ana:"前面说累、后面说还是做完了，方向相反，所以用转折的 but。because 讲原因、so 讲结果，都要求前后方向一致。" },
+
+  { q:"My brother is as ______ as me.",
+    opts:["tall","taller","tallest"], ans:0,
+    ana:"as ... as 是等号结构，两边一样高，中间要用原级 tall。taller 是大于号，tallest 是最大值，塞进等号里就自相矛盾了。" },
+
+  { q:"This is ______ film I have ever seen.",
+    opts:["a good","the best","better"], ans:1,
+    ana:"I have ever seen 划定的是「到目前为止的全部范围」，在全部里排第一，用最高级 the best。范围里有「全部」，才有资格谈最高级。" },
+
+  { q:"You ______ finish it today; tomorrow is also fine.",
+    opts:["mustn't","don't have to","can't"], ans:1,
+    ana:"mustn't 是禁止，can't 是不能，而这里只是「没必要」，所以用 don't have to。别把「不必」和「不许」当成同一个集合。" },
+
+  { q:"The light is on, so she ______ be at home.",
+    opts:["can't","must","needn't"], ans:1,
+    ana:"灯亮着是证据，由证据推出「一定」，用 must be。这里 must 不是「必须」，而是「根据线索必然成立」，像由已知条件推出唯一解。" },
+
+  { q:"He hardly speaks English, ______?",
+    opts:["does he","doesn't he","is he"], ans:0,
+    ana:"hardly 本身是否定词，整句其实是否定句，反意部分就要用肯定；前面的动词是 speaks，助动词取 does。否定乘否定得肯定，跟符号相乘一样。" },
+
+  { q:"English ______ in many countries.",
+    opts:["speaks","is spoken","is speaking"], ans:1,
+    ana:"英语是「被」说的，主语是动作的承受者，所以用被动 is spoken。判断主动还是被动，只看主语在做事还是在被做。" },
+
+  { q:"The homework must ______ before Friday.",
+    opts:["finish","be finished","be finishing"], ans:1,
+    ana:"must 后面跟动词原形，但作业是被完成的，所以要 be + 过去分词：must be finished。情态动词加被动，等于套了两层括号。" },
+
+  { q:"They decided ______ the museum on Sunday.",
+    opts:["visit","to visit","visiting"], ans:1,
+    ana:"decide 后面接不定式 to do：「决定」指向还没发生的事，不定式正好表示将要做。现在还没去，所以不能用 doing。" },
+
+  { q:"He enjoys ______ English songs.",
+    opts:["sing","singing","to sing"], ans:1,
+    ana:"enjoy 后面接动名词，因为「享受」的是一个正在进行的过程，而不是一件将来要做的事。时间方向决定了用 doing。" },
+
+  { q:"It is important ______ English every day.",
+    opts:["practice","to practice","practicing"], ans:1,
+    ana:"It 只是形式主语，真正的主语被搬到后面，用不定式 to practice。就像先用一个占位符站住位置，再把真正的主角请上台。" },
+
+  { q:"The box is too heavy ______.",
+    opts:["to carry","carry","carrying"], ans:0,
+    ana:"too ... to 表示「太……以至于不能」，too heavy to carry 就是重得搬不动。形容词配 to do 是成对出现的结构，缺一半意思就不完整。" },
+
+  { q:"Either you or he ______ right.",
+    opts:["are","is","am"], ans:1,
+    ana:"either ... or 用就近原则，动词跟着离它最近的主语 he 走，所以用 is。跟「取最近的那个数」是同一个思路。" },
+
+  { q:"The number of students ______ over 500.",
+    opts:["are","is","be"], ans:1,
+    ana:"the number of 的意思是「……的数量」，主语是 number 这个单数，所以用 is；a number of 才是「许多」，配复数。先看清主语到底是「数量」还是「学生」。" },
+
+  { q:"There is ______ in today's newspaper.",
+    opts:["something interesting","interesting something","anything interesting"], ans:0,
+    ana:"形容词修饰 something 时要放在后面；陈述句里用 something，疑问句和否定句才用 anything。词序和句式是两条独立的规则。" },
+
+  { q:"He goes to school ______ bike every day.",
+    opts:["by","with","on"], ans:0,
+    ana:"by 加交通工具（不加冠词）表示方式：by bike。with 后面要接具体工具（with a pen），on foot 是另一个例外。三个介词各有各的定义域，别越界使用。" },
+
+  { q:"She is always ______ to help others.",
+    opts:["ready","readily","readiness"], ans:0,
+    ana:"空格前面是 be 动词 is，系动词后面要站形容词，所以选 ready。位置决定词性：副词和名词都站不住这个位置。" },
+
+  { q:"______ beautiful the flowers are!",
+    opts:["What","How","What a"], ans:1,
+    ana:"How 修饰形容词或副词（How beautiful ...），What 修饰名词（What a beautiful flower）。这里 beautiful 是形容词，所以用 How。" },
+
+  { q:"______ late for school again, Tom!",
+    opts:["Don't be","Not be","Don't"], ans:0,
+    ana:"否定祈使句是 Don't + 动词原形，而 late 是形容词，前面必须有 be，所以是 Don't be late。两个成分缺一个，句子就站不住。" },
+
+  { q:"Why not ______ a short break?",
+    opts:["take","to take","taking"], ans:0,
+    ana:"Why not 后面直接跟动词原形，是提建议的固定框架。它其实是 Why don't you take 省略了主语，省略之后结构不能跟着变形。" },
+
+  { q:"The more you practice, ______ you will be.",
+    opts:["the better","better","the best"], ans:0,
+    ana:"the + 比较级, the + 比较级 表示「越……越……」，前后要对称，所以第二空也要 the better。对称结构就像等式两边必须同形。" },
+
+  { q:"He has ______ finished his homework, so he can play now.",
+    opts:["already","yet","still"], ans:0,
+    ana:"肯定句里表示「已经完成」用 already；yet 只用在疑问句和否定句；still 是「仍然」。already 站在「完成」这边，yet 站在「还没」这边。" },
+
+  { q:"If I ______ you, I would take the easier way.",
+    opts:["am","was","were"], ans:2,
+    ana:"这是与事实相反的假设——现实里我不可能是你——所以 be 动词一律用 were，这就是虚拟语气。句子本身在提醒你：它说的不是真的。" }
 ];
 
-/* ---------- 3 首英文歌的歌词 + 中文翻译（仅供学习使用，取副歌等片段） ---------- */
+/* ---------- 5 首英文歌的歌词 + 中文翻译（仅供学习使用，取副歌等片段） ---------- */
 const SONGS = [
   {
     title:"Count on Me", artist:"Bruno Mars", emoji:"🤝",
@@ -889,6 +1122,36 @@ const SONGS = [
       { en:"It's all yellow and nice.",                                 zh:"黄黄的，很好看。" },
       { en:"It's so very cold outside,",                                zh:"外面非常冷，" },
       { en:"like the way I'm feeling inside.",                          zh:"就像我心里的感觉一样。" }
+    ]
+  },
+
+  /* ============================================================
+     【升级说明】以下 +2 首歌：句子短、重复多、适合初中生跟读
+     ============================================================ */
+  {
+    title:"You Are My Sunshine", artist:"Jimmie Davis", emoji:"☀️",
+    lines:[
+      { en:"You are my sunshine, my only sunshine,",                    zh:"你是我的阳光，我唯一的阳光，" },
+      { en:"you make me happy when skies are gray.",                    zh:"当天色灰暗时，你让我快乐。" },
+      { en:"You'll never know, dear, how much I love you.",             zh:"亲爱的，你永远不会知道我有多爱你。" },
+      { en:"Please don't take my sunshine away.",                       zh:"请别把我的阳光带走。" },
+      { en:"The other night, dear, as I lay sleeping,",                  zh:"亲爱的，那天夜里我躺在床上，" },
+      { en:"I dreamed I held you in my arms.",                          zh:"我梦见我把你抱在怀里。" },
+      { en:"When I awoke, dear, I was mistaken,",                       zh:"亲爱的，醒来后我发现那只是梦，" },
+      { en:"so I hung my head and cried.",                              zh:"于是我低下头哭了。" }
+    ]
+  },
+  {
+    title:"Let It Be", artist:"The Beatles", emoji:"🕊️",
+    lines:[
+      { en:"When I find myself in times of trouble,",                   zh:"当我陷入困境的时候，" },
+      { en:"Mother Mary comes to me,",                                  zh:"圣母玛利亚来到我身边，" },
+      { en:"speaking words of wisdom, let it be.",                      zh:"说着智慧的话：顺其自然吧。" },
+      { en:"And in my hour of darkness,",                               zh:"在我最黑暗的时刻，" },
+      { en:"she is standing right in front of me,",                     zh:"她就站在我面前，" },
+      { en:"speaking words of wisdom, let it be.",                      zh:"说着智慧的话：顺其自然吧。" },
+      { en:"Let it be, let it be, let it be, let it be.",               zh:"顺其自然，顺其自然，顺其自然。" },
+      { en:"Whisper words of wisdom, let it be.",                       zh:"轻声说着智慧的话：顺其自然吧。" }
     ]
   }
 ];
@@ -1062,7 +1325,8 @@ function celebrate(text, sub, ms){
 /* 切换页面标签 */
 function switchPage(name){
   document.querySelectorAll("nav.tabs button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.page === name);
+    // 【升级说明】带 data-action 的按钮（如「🧠 周末唤醒」）不是独立页面，不参与高亮
+    b.classList.toggle("active", !b.dataset.action && b.dataset.page === name);
   });
   document.querySelectorAll(".page").forEach(function(sec){
     sec.classList.toggle("active", sec.id === "page-" + name);
@@ -1071,7 +1335,12 @@ function switchPage(name){
   if(name === "checkin") renderCheckin();   // 【新增】进打卡页时刷新计时器和日历（跨天也能更新）
 }
 document.querySelectorAll("nav.tabs button").forEach(function(b){
-  b.addEventListener("click", function(){ sfx("click"); switchPage(b.dataset.page); });
+  b.addEventListener("click", function(){
+    sfx("click");
+    switchPage(b.dataset.page);
+    // 【升级说明】「🧠 周末唤醒」：先切到错题本，再直接用那个队列开始复习
+    if(b.dataset.action === "wake") startWakeReview();
+  });
 });
 
 /* 顶部统计数字 + 音效图标 刷新 */
@@ -1079,6 +1348,9 @@ function refreshStats(){
   document.getElementById("statMastered").textContent = state.masteredWords.length;
   document.getElementById("statWrong").textContent    = state.wrongBook.length;
   document.getElementById("btnMute").textContent      = state.mute ? "🔇" : "🔊";
+  // 【升级说明】单词总数跟着题库走（150 个），不再写死 50
+  const totalEl = document.getElementById("statTotalWords");
+  if(totalEl) totalEl.textContent = WORDS.length;
 }
 
 /* 音效开关 */
@@ -1107,6 +1379,31 @@ document.getElementById("btnMute").addEventListener("click", function(){
     lastReview: 时间戳                   最后复习时间
   }
 */
+
+/* 【升级说明】把一段文字算成一个短哈希（djb2 算法）
+   用途：给语法错题生成"跟着题目内容走"的 ID。
+   好处：题库以后怎么增删、顺序怎么变，同一道题的 ID 都不会变，绝不会互相覆盖。
+   注意：这里只求"唯一且稳定"，不用于安全用途。 */
+function hashText(s){
+  let h = 5381;
+  const str = String(s || "");
+  for(let i = 0; i < str.length; i++){
+    h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;   // h * 33 + c，再截成 32 位无符号
+  }
+  return h.toString(36);                            // 转成 36 进制，短一点
+}
+
+/* 【升级说明】语法错题的 ID 生成规则：
+   1) 先看错题本里有没有"同一道题"（按题目文字比对）——有就继续用那条的 ID，实现合并计数；
+   2) 没有就用 "g_" + 题目哈希，保证唯一，且不随题库更新而错乱。
+   老存档里形如 "g_0" 的旧 ID 依然有效：比对的是题目文字，不是 ID。 */
+function grammarWrongId(question){
+  const existed = state.wrongBook.find(function(x){
+    return x.type === "grammar" && x.question === question;
+  });
+  if(existed) return existed.id;
+  return "g_" + hashText(question);
+}
 
 /* 新增或更新一条错题 */
 function addWrong(item){
@@ -1206,6 +1503,8 @@ function startReview(){
   reviewQueue = notMastered.concat(mastered).map(function(x){ return x.id; });
   reviewPos = 0;
   document.getElementById("reviewArea").classList.remove("hidden");
+  // 【升级说明】复习区的标题按入口切换：普通复习 / 周末唤醒
+  document.getElementById("reviewModeTag").textContent = "🔁 翻卡复习中";
   showReviewCard();
 }
 document.getElementById("btnStartReview").addEventListener("click", function(){ sfx("click"); startReview(); });
@@ -1318,7 +1617,8 @@ function renderWord(){
     document.getElementById("wordProgressText").textContent = WORDS.length + " / " + WORDS.length;
     bar.style.width = "100%";
     document.getElementById("wordEn").textContent = "ALL DONE!";
-    document.getElementById("wordZh").textContent = "50 个单词全部闯关完成！";
+    // 【升级说明】文案跟着题库规模走，不再写死 "50 个单词"
+    document.getElementById("wordZh").textContent = WORDS.length + " 个单词全部闯关完成！";
     document.getElementById("wordEx").textContent = "You finished every level. Well done!";
     document.getElementById("wordExZh").textContent = "你完成了所有关卡，太棒了！";
     document.getElementById("btnKnown").textContent = "🔄 重新挑战";
@@ -1435,7 +1735,7 @@ function nextWord(){
     saveState();
     renderWord();
     if(state.wordLevel >= WORD_LEVELS){
-      celebrate("全部通关！", "50 个单词都被你攻下啦，你就是单词之王 👑", 2600);
+      celebrate("全部通关！", WORDS.length + " 个单词都被你攻下啦，你就是单词之王 👑", 2600);
     }else{
       celebrate("你真棒！第 " + state.wordLevel + " 关通过 🎉", "即将进入第 " + (state.wordLevel + 1) + " 关，加油！", 2200);
     }
@@ -1472,7 +1772,7 @@ function renderGrammar(){
     document.getElementById("gLevelTag").textContent = "全部通关 🎊";
     document.getElementById("gProgressText").textContent = GRAMMAR.length + " / " + GRAMMAR.length;
     bar.style.width = "100%";
-    qBox.textContent = "10 道语法题全部完成！你已经把规则背后的逻辑理顺了 🧠✨";
+    qBox.textContent = GRAMMAR.length + " 道语法题全部完成！你已经把规则背后的逻辑理顺了 🧠✨";
     optBox.innerHTML = "";
     ana.classList.add("hidden");
     nextBtn.textContent = "🔄 重新挑战";
@@ -1537,7 +1837,8 @@ function answerGrammar(idx){
     sfx("wrong");
     ana.innerHTML = "<b>❌ 再想想～</b> 正确答案是 <span class='right'>" + escapeHtml(right) + "</span><br>" + escapeHtml(item.ana);
     addWrong({
-      id: "g_" + (state.grammarLevel * G_PER_LEVEL + state.grammarPos),
+      // 【升级说明】不再用题库下标拼 ID（getWrongId 见上方 grammarWrongId）
+      id: grammarWrongId(item.q),
       type: "grammar",
       question: item.q,
       myAnswer: String.fromCharCode(65 + idx) + ". " + item.opts[idx],
@@ -1618,6 +1919,7 @@ function renderSongs(){
    第十部分：启动 —— 读数据、渲染页面、绑定键盘快捷键
    ===================================================================================== */
 loadState();          // 1. 读取本地进度
+normalizeProgress();  // 1.5 【升级说明】把旧题库留下的关卡进度夹到新题库的合法范围
 refreshStats();       // 2. 刷新顶部统计
 renderWord();         // 3. 渲染单词闯关
 renderGrammar();      // 4. 渲染语法闯关
@@ -1708,6 +2010,9 @@ function weekendAggregate(daily, from){
 /* 拼接战报文字：本周末掌握词数 + 本周末新增错题 + 本周末专注时长 + 累计打卡 + 最该复习的前 3 题
    【改动】统计范围是"最近一个周五 00:00 → 现在"，不再只看今天 */
 function buildReportText(refDate){
+  // 【升级说明】计时是每 5 秒才落盘一次，生成战报前先把内存里的秒数刷进存档，
+  // 否则「本周末专注时长」可能少算最近几秒
+  saveState();
   const data = readSavedState();
   const wk   = weekendAggregate(data.daily, refDate);   // 本周末汇总
 
@@ -1918,6 +2223,9 @@ function addFocusSeconds(sec){
 
   saveTickCount++;
   if(saveTickCount % 5 === 0) saveState();   // 每 5 秒落盘一次：够安全，也不吵
+  // 【升级说明】刚好跨过"1 分钟"这条打卡线时，日历上的「累计打卡」要立刻 +1，
+  // 不然她坐在打卡页看着数字不动会以为没记上
+  if(before < CHECKIN_MIN_SEC && rec.seconds >= CHECKIN_MIN_SEC) renderCalendar();
   updateTimerUI();
 }
 
@@ -2172,6 +2480,7 @@ window.addEventListener("beforeunload", function(){ saveState(); });
 
 /* 生成导出文字：优先用已保存的存档；一次都没保存过就导出内存里的当前状态 */
 function buildExportText(){
+  saveState();                             // 【升级说明】先落盘，导出的存档才是最新的
   const raw = localStorage.getItem(STORE_KEY);
   let obj = state;
   if(raw){
@@ -2204,6 +2513,7 @@ function importFromText(text){
   localStorage.setItem(STORE_KEY, JSON.stringify(obj));           // 1. 覆盖存档
   state = Object.assign(defaultState(), obj);                     // 2. 换掉内存里的状态
   state.focus = { running: false, lastTick: 0 };                  //   导入后计时器先停着，避免乱算
+  normalizeProgress();                                            // 【升级说明】导入的进度也夹到合法范围
   saveState();                                                    // 3. 补全缺省字段后再存一次
 
   refreshStats();      // 4. 整站重新渲染
@@ -2277,6 +2587,73 @@ document.getElementById("btnDataClose").addEventListener("click", closeDataModal
 document.getElementById("dataModal").addEventListener("click", function(e){
   if(e.target === this) closeDataModal();
 });
+
+/* =====================================================================================
+   第十四部分【升级说明】：题库升级的兼容处理
+   -------------------------------------------------------------------------------------
+   题库从 50 词 / 10 题扩到 150 词 / 40 题后，总关卡数也跟着变（单词 30 关、语法 8 关）。
+   老存档里的 wordLevel / grammarLevel 可能是旧题库的值，甚至可能是手改过的异常值。
+   这里统一把它夹进合法区间：
+     · 负数 / NaN / 不是数字  → 归零
+     · 超过总关卡数            → 当作"已全部通关"，显示通关页而不是白屏
+     · 关内位置越界            → 回到本关第一个
+   ===================================================================================== */
+function normalizeProgress(){
+  let changed = false;
+
+  // —— 单词闯关 ——
+  if(!(state.wordLevel >= 0)){ state.wordLevel = 0; changed = true; }
+  if(state.wordLevel > WORD_LEVELS){ state.wordLevel = WORD_LEVELS; changed = true; }
+  if(!(state.wordPos >= 0) || state.wordPos >= WORD_PER_LEVEL){ state.wordPos = 0; changed = true; }
+
+  // —— 语法闯关 ——
+  if(!(state.grammarLevel >= 0)){ state.grammarLevel = 0; changed = true; }
+  if(state.grammarLevel > G_LEVELS){ state.grammarLevel = G_LEVELS; changed = true; }
+  if(!(state.grammarPos >= 0) || state.grammarPos >= G_PER_LEVEL){ state.grammarPos = 0; changed = true; }
+
+  if(changed) saveState();
+  return changed;
+}
+
+/* =====================================================================================
+   第十五部分【升级说明】：周末记忆唤醒（艾宾浩斯遗忘曲线）
+   -------------------------------------------------------------------------------------
+   她的节奏是"周五晚到周日下午"，所以唤醒条件按"超过 2 天没碰"来定：
+     · level < 3        —— 还没完全掌握
+     · now - lastReview > 172800000 毫秒（正好 2 天）—— 忘得差不多了
+   选出来的题按错误次数从多到少排，最多取 10 道，
+   然后直接复用第六部分已经写好的翻卡复习：只替换队列，交互逻辑一行不改。
+   ===================================================================================== */
+
+const WAKE_AFTER_MS      = 2 * 24 * 60 * 60 * 1000;   // 172800000 毫秒 = 2 天
+const WAKE_MAX_QUESTIONS = 10;                         // 一轮最多唤醒 10 道
+
+/* 【升级说明】挑出"到期该复习"的题（纯筛选，不改状态，方便单独验证） */
+function pickWakeQuestions(now){
+  const t = now || Date.now();
+  return state.wrongBook
+    .filter(function(x){ return (x.level || 0) < 3; })                        // 没完全掌握
+    .filter(function(x){ return t - (x.lastReview || 0) > WAKE_AFTER_MS; })    // 超过 2 天没复习
+    .sort(function(a, b){ return (b.count || 0) - (a.count || 0); })           // 错得多的先来
+    .slice(0, WAKE_MAX_QUESTIONS);                                            // 最多 10 道
+}
+
+/* 【升级说明】点「🧠 周末唤醒」：筛题 → 复用翻卡复习 */
+function startWakeReview(){
+  const list = pickWakeQuestions();
+
+  if(!list.length){
+    alert("本周没有到期的错题，去闯关新单词吧！🎉");
+    return;
+  }
+
+  // 只替换队列，后面的"我记住了 / 还不熟"完全复用原有逻辑
+  reviewQueue = list.map(function(x){ return x.id; });
+  reviewPos   = 0;
+  document.getElementById("reviewArea").classList.remove("hidden");
+  document.getElementById("reviewModeTag").textContent = "🧠 周末唤醒";
+  showReviewCard();
+}
 </script>
 </body>
 </html>

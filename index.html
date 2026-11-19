@@ -1,392 +1,281 @@
-<!DOCTYPE html>
-<!--
-=====================================================================================
-  🌸 英语学习小站 · 给初二的你 🌸
-=====================================================================================
-  【怎么用】
-  1. 把这个文件保存成 xxx.html（例如：英语学习小站.html）；
-  2. 直接双击，用 Chrome / Edge / 手机浏览器打开，不需要装任何东西，也不需要联网；
-  3. 学习进度会自动存在浏览器的 localStorage 里，关掉网页、刷新页面都不会丢。
 
-  【三个功能】
-  ① 单词闯关：50 个初二核心词，每关 5 个；卡片可翻面看中文+例句；点 🔊 听发音；
-              答对 → 标记"已掌握"；答错 → 自动进错题本；有进度条 + 过关庆祝动画 + 音效。
-  ② 语法闯关：10 道选择题（每关 5 题），选错立刻讲逻辑，同样自动收进错题本。
-  ③ 错题本　：自动收集所有答错的题（题目 / 我选的答案 / 正确答案 / 解析 /
-              错误次数 / 最后复习时间 / 掌握程度 0-3⭐），按错误次数从多到少排序；
+我妹妹初二，讨厌背记，但逻
+标准模式
+
+
+对话
+
+轨迹
+
+
+加载更早
+加！「每天 15 分钟倒计时/打卡日历」和「错题导出成打印版」也接着做——打卡日历正好能顺带解决这个"今日"数据来源，两者可以合成一次改动。
+17:16
+
+已完成
+已完成，用时 4分43秒
+好，一次做完这三件事，并且让打卡记录成为战报「今日」的真实数据源。先加样式。
+
+现在写测试：用两个独立「世界」分别验证「老存档兼容」和「全新功能 + 原有功能回归」。
+
+唯一失败是我的断言把「只有 2 条错题」当成 3 条了 —— 站点逻辑是对的（不足 3 条就列全部）。修正断言重跑。
+
+补一个体验细节：只靠手动按「开始」，她可能刷了 20 个词却没计时，战报里的时长就是 0。让「答题」自动开始计时，数据才准。
+
+三件事一次做完了：英语学习小站.html（95.7 KB，仍是单文件，双击即用）。原有功能、样式、存档字段全部保留。
+
+一、新增的「⏱ 打卡」页
+导航栏多了第 5 个标签，页面里是两块：
+
+① 15 分钟倒计时
+
+圆环进度（conic-gradient 画，--p 变量由 JS 实时改写）+ 剩余 mm:ss + 彩虹进度条
+按钮：▶ 开始 15 分钟 / ⏸ 暂停 / ▶ 继续 / ▶ 继续学习（达标后）
+满 15 分钟那一刻：自动暂停 + 庆祝弹窗 + 彩带（每天只庆祝一次，goalCelebrated 标记）
+↺ 重计今日 只清空今天，历史日期不受影响（会二次确认）
+两个抗浪费时间的细节：切到后台/微信时不累计；电脑睡眠后回来，单次最多按 2 秒算，不会凭空多出几小时
+② 打卡日历
+
+周一起始的月历，可左右翻月；⭐ = 满 15 分钟，· = 有学习（≥1 分钟），粉色描边 = 今天
+每格 title 悬停能看到当天明细：学习 12 分钟 · 掌握 3 词 · 新增 2 条错题
+顶部显示「🔥 连续打卡 N 天」「📅 本月打卡 N 天」
+连续打卡的定义做了个贴心处理：今天还没学就从昨天开始数，早上刚打开不会显示 0
+只保留最近 180 天记录，存档不会无限膨胀
+二、战报的「今日」现在是真的今天
+数据层加了 state.daily，按日期分开存：
+
+js
+
+
+daily: {
+  "2026-11-19": { seconds: 812, mastered: 5, wrongAdded: 2, goalCelebrated: true }
+}
+三个计数点埋在最省事的位置（都是只在"第一次"时 +1，重复点不会刷数据）：
+
+埋点	位置	效果
+mastered	「我记住了」里 masteredWords.indexOf(...) === -1 分支	重刷已掌握的词不再 +1
+wrongAdded	addWrong() 的新建分支	同一道题反复错只算 1 条新增
+seconds	计时器每秒结算	战报里的学习时长
+所以战报变成了：
+
+代码块
+
+
+🌟 姐姐，我今天的英语学习战报来啦！
+✅ 今日已掌握单词：5 个
+📕 错题本新增：2 条
+⏱ 今日学习时长：13 分钟
+🔥 连续打卡：1 天
+🔍 最需要复习的题目：
+
+1. 单词：ancient（错 5 次）
+2. ...
+🏆 我会继续加油的！
+比上一版多了「学习时长」「连续打卡」两行，都是为了配合这次的功能；不想要就把那两行 lines.push(...) 删掉。
+
+三、🖨 错题导出打印版
+错题本页面多了个按钮，点它把错题排成复习卷再调 window.print()：
+
+第 1 页：题目 —— 每题带 [单词]/[语法] 标签、语法题带 A/B/C 三个选项、下面一行 我的答案：____ 手写空位
+第 2 页：答案与解析 —— 强制分页（page-break-before: always），含正确答案、逻辑解析、错误次数、掌握程度星级、上次选错的那个
+卷头有姓名/日期/得分栏，卷尾一句「每天 15 分钟，坚持 21 天就能看出变化 🌱」
+实现方式是在页面里放一个 .print-sheet（屏幕上 display:none），@media print 时把整个网站藏掉只留它 —— 不用弹新窗口，所以不会被拦截器挡，手机和电脑都能用（iOS 上会走"打印 → 存为 PDF"）
+为了让语法题打印后仍是选择题，answerGrammar 存错题时多带了一个 opts 字段（纯新增，老数据没这个字段也不会报错）。
+
+四、验证（88 项断言全过）
+用了两个独立「世界」分别跑：
+
+世界 A：模拟升级前的老存档（没有 daily/focus）
+
+加载不崩、自动补字段、单词进度和错题一条不少
+老战报今日数字全 0（诚实），但「最该复习的题目」照常输出
+老错题（没存选项）也能生成打印卷，且不会硬塞一个空选项行
+世界 B：全新存档，完整流程
+
+计时：60 秒→14:00、秒级落盘、后台不累计、睡眠保护只算 2 秒、15 分钟自动暂停+只庆祝一次、重计清零
+日历：今天标 study、连续 1 天、本月 1 天、tooltip 有明细、翻月再翻回来
+答题：答错今日+1、答对 4 个今日掌握 4、满 5 个自动进第 2 关、已在计时时点答题不重置计时、点无关按钮不误启动
+打印：标题/两页/分页符/空位数量/三个选项/解析/姓名栏全对，点按钮真的调用了 window.print，空错题本时只提示不打印白卷
+战报：5 个 / 2 条 / 2 分钟 / 1 天逐项对比，剪贴板内容与全文完全一致，提示语未变
+回归：复习翻卡、还不熟+1、我记住了+1⭐、清空错题本、空状态、存档字段一个不少
+五、两点要提前知道的
+计时不再需要手动开始：点「我记住了 / 还不熟 / 任意一个语法选项」会自动开始计时（否则她刷了 20 个词却忘按开始，战报显示 0 分钟就尴尬了）。不想要这个自动化，删掉文件末尾那段 document.addEventListener("click", ...) 委托即可。
+打印效果取决于浏览器：默认页边距是 14mm，如果打印出来太挤/太松，在浏览器打印预览里选「缩放：适合页面」最省事；Edge/Chrome 还能直接「另存为 PDF」发给她。
+要不要我再加一个「本周战报」或者把打卡日历做成可长按补卡（比如昨天忘了计时）？现在补卡会影响"今日"统计，我不会擅自加。
+
+
+已编辑 英语学习小站.html
++529
+-10
+
+英语学习小站.html
+新增：⏱ 15 分钟打卡日历、🖨 错题打印版、战报改用「今日」真实数据
+
+
+
+
+
+
+
+用量 4.6M tok
+17:21
+我的网页目前是基于‘每日’统计的，但我妹妹只有周五晚上到周日下午有手机可以使用。请帮我修改现有代码，适应这种‘周末型’使用习惯：
+
+战报数据：把【今日战报】的文字修改为【周末战报】。战报里的数据（掌握词数、错题新增、学习时长）不再只统计‘今天’，而是统计从本周五 00:00 到当前时刻的累计数据。
+
+打卡日历：把顶部的【🔥 连续打卡 N 天】改为【📅 累计打卡 N 天】。把文案里的‘每天 15 分钟’全部改为‘单次专注 15 分钟’。倒计时按钮‘开始 15 分钟’保持不变，但说明文字改为‘每次专注 15 分钟，帮大脑热热身’。
+
+防丢存档功能：在页面最底部增加【导出存档】和【导入存档】两个按钮。点击导出，弹出一个包含当前 localStorage 数据的文本框，可以一键复制；点击导入，允许用户粘贴文本并覆盖当前存档。这样她换设备也不怕丢数据了。
+
+其他功能和样式保持不变。
+17:25
+
+已完成
+已完成，用时 3分44秒
+现在开始改，逐块进行。先是文案与标签：
+
+现在把测试套件改写成「周末语义 + 存档导入导出」版本：
+
+改完了：英语学习小站.html（104.9 KB，仍是单文件）。
+
+一、战报改成「周末口径」
+按钮变成 📊 生成周末战报，统计窗口是 最近一个周五 00:00 → 现在：
+
+js
+
+
+function weekendStart(from){
+  const now  = from || new Date();
+  const d    = new Date(now.getFullYear(), now.getMonth(), now.getDate());  // 今天 00:00
+  const back = (d.getDay() - 5 + 7) % 7;   // 周五=0、周六=1、周日=2、周一=3 … 周四=6
+  d.setDate(d.getDate() - back);
+  return d;
+}
+打开那天	统计起点
+周五	今天 00:00
+周六 / 周日	昨天 / 前天（周五 00:00）
+周一 ~ 周四	上周五 00:00（刚结束的那个周末）
+下一个周五	自动跳到新周五，战报从 0 重算
+关于「本周五」我做了一个判断：如果按字面取"本周五"，那她在周一到周四打开时会得到一个空战报（周五还没到）。所以用的是最近一个周五——周末期间等于本周五，周中看到的就是刚过去的那个周末，数据不会凭空消失。周一零点不会清零，周五零点才清零。实测确认：周日和周四看到的都是同一个窗口，下周五才换新。
+
+战报实际输出（测试里用 11/13–11/15 的数据跑出来的真东西）：
+
+代码块
+
+
+🌟 姐姐，我这周末的英语学习战报来啦！
+🗓 统计范围：11/13（周五）— 11/15，其中 3 天有学习
+✅ 本周末掌握单词：6 个
+📕 本周末新增错题：3 条
+⏱ 本周末专注时长：15 分钟
+📅 累计打卡：5 天
+🔍 最需要复习的题目：
+
+1. 单词：ancient（错 4 次）
+2. She ______ to school.（错 2 次）
+3. There ______ some milk.（错 1 次）
+🏆 我会继续加油的！
+顺手加了「统计范围」那一行——不然姐姐看不出这 6 个词是几天的量。不想要就删掉对应的 lines.push(...)。
+
+二、日历：连续打卡 → 累计打卡
+🔥 连续打卡 N 天 → 📅 累计打卡 N 天（统计"有史以来"所有专注 ≥1 分钟的天数）
+原来那个"连续"的算法会因为她周一到周四没手机而天天断签，显示永远是 1，现在这样才合理
+为了让「累计」不越用越少，daily 的保留期从 180 天放宽到 1000 天（约 3 年）
+旁边的「📅 本月打卡」原样保留
+三、文案：每天 → 单次
+全文已经搜不到「每天 15 分钟」了，改成了：
+
+位置	现在显示
+顶部副标题	单次专注 15 分钟 · 不用死记硬背…
+倒计时下方说明	每次专注 15 分钟，帮大脑热热身
+倒计时按钮	▶ 开始 15 分钟（保持不变）
+打卡卡片	今日专注 / 今天已学 X 分钟（未改）
+打印卷页脚	单次专注 15 分钟，坚持 21 天就能看出变化
+四、存档导出 / 导入
+页面最底部（任何标签页都看得到）新增两枚按钮：
+
+📤 导出存档：弹出窗口，文本框里是缩进好的 JSON（同一份 localStorage 存档），打开即全选，点「📋 复制存档」一键进剪贴板（复用已有的 navigator.clipboard + 失败自动兜底），提示「存档已复制！发到微信收藏或备忘录里…」
+📥 导入存档：同一个窗口换成粘贴模式，贴进去点「✅ 覆盖导入」→ 二次确认 → 校验 → 覆盖 → 整站立刻重渲染（单词卡、错题本、日历、统计全同步），并提示恢复了多少词、多少错题
+导入做了四层校验，防手滑：不是 JSON / 是数组 / 不认识这个页面 / 字段类型不对，都会被拒并说明原因，而且被拒绝时原有进度一条不动。
+
+五、验证：84 项断言全过
+周末窗口：周五/六/日/一/四/下周五 6 个日期逐一比对起点；起点确实是 00:00:00
+汇总隔离：造了 11/11、11/12（上周三/四）+ 11/13、14、15（周末）的数据，确认只累加 300+120+480=900 秒、6 个词、3 条错题、3 个学习日，周中那两天被正确排除
+战报文字：6 行数据逐项比对（含"不再出现今日字样"）；周五当天只显示单日范围
+日历：累计 5 天 → 学 2 分钟后变 6 天；本月打卡同步更新
+存档：导出→换一台"新设备"（全新空存档）导入，单词卡恢复到第 4 个词、与原设备完全一致，顶部统计、计时器状态（导入后自动暂停）都正确；四种异常输入全部被拒且不破坏现有进度
+弹窗：初始隐藏、导出只读+全选+复制、导入可编辑+空值提示+成功后自动关闭
+回归：单词闯关、满 5 个过关、语法收录、翻卡复习、打印调用 window.print、计时累计、静音开关全部照旧
+六、一个小提醒
+15 分钟的倒计时仍然是按当天累计算的（所以日历上的 ⭐ 含义"当天专注满 15 分钟"没变）。如果她同一天开第二次，会显示 00:00 和「已完成」，点「▶ 继续学习」能接着计时。要是你希望改成"每次打开都重新算 15 分钟、一天可以打好几次卡"，那属于计数口径变更，我可以再做一版。
+
+
+已编辑 英语学习小站.html
+在侧边栏预览
+
+英语学习小站.html
+周末统计版：周末战报、累计打卡、单次专注文案、存档导出/导入
+
+
+
+
+
+
+
+用量 6.4M tok
+17:29
+
+
+工作区内修改
+
+DeepSeek-V4.1-Flash
+High
+
+
+5 轮 113 步·230 tok/s
+
+14.2M tok·缓存命中 99%
+
+19%
+
+
+
+
+
+英语学习小站.html
++239
+-46
+
+
+
+
+
+@@ -17,12 +17,13 @@
               "开始复习"进入翻卡模式：正面题目，翻面答案+解析，
               "我记住了"让掌握度 +1，"还不熟"让错误次数 +1。
   ④ 听歌学英语：3 首英文歌的歌词 + 中文翻译（点歌名展开）。
-
+  ⑤ 打卡日历　：每天 15 分钟倒计时（圆环 + 剩余时间），自动累计学习时长；
+              日历上标出哪天有学习、哪天满 15 分钟，还能看连续打卡天数。
+  ⑥ 今日战报　：顶部一键生成战报（今日掌握词数 / 今日新增错题 / 学习时长 /
+              连续打卡 / 最该复习的前 3 题），自动复制到剪贴板，直接粘微信发给姐姐。
+  ⑦ 错题打印　：错题本里「🖨 导出打印版」，生成「题目页 + 答案解析页」的复习卷，
+              调浏览器打印就能拿到纸质的。
   【技术说明】
   · 纯原生 HTML + CSS + JavaScript，零框架、零依赖、零外部文件；
-  · 朗读用浏览器自带 speechSynthesis API；
-  · 音效用 Web Audio API 现场合成（所以不需要任何 mp3 文件）；
-  · 进度用 localStorage 保存，键名见下方 STORE_KEY。
-
-  【想自己加单词？】找到代码里 `const WORDS = [` 那一行，照格式往里加就行，
-  格式：{ w: "英文", z: "中文", e: "英文例句", ez: "例句中文翻译" }
-=====================================================================================
--->
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<!-- 手机上也能正常显示：让页面宽度跟随设备宽度 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>英语学习小站 🌸 单词闯关 · 错题本 · 听歌学英语</title>
-<style>
-/* ============================================================
-   1) 全局变量与基础样式（配色：粉色 + 淡黄 + 薄荷绿）
-   ============================================================ */
-:root{
-  --pink:        #ff8fab;   /* 主粉 */
-  --pink-soft:   #ffd6e0;   /* 浅粉（背景块） */
-  --yellow:      #ffd966;   /* 主黄 */
-  --yellow-soft: #fff3c4;   /* 浅黄 */
-  --mint:        #6fd6b6;   /* 主薄荷绿 */
-  --mint-soft:   #d4f5e9;   /* 浅薄荷绿 */
-  --ink:         #4a3f55;   /* 正文深紫灰 */
-  --ink-light:   #857a90;   /* 次要文字 */
-  --card:        #fffdf8;   /* 卡片底色（暖白） */
-  --shadow:      0 8px 20px rgba(255,143,171,.22);
-  --radius:      22px;
-}
-
-*{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-html,body{ margin:0; padding:0; }
-
-body{
-  /* 字体大一点，适合初中生阅读 */
-  font-family: "Comic Sans MS", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  font-size: 18px;
-  line-height: 1.7;
-  color: var(--ink);
-  background: linear-gradient(160deg, #fff6fa 0%, #fffdf0 45%, #eefaf5 100%);
-  background-attachment: fixed;
-  min-height: 100vh;
-  padding-bottom: 40px;
-}
-
-/* 背景上飘着的小圆点装饰（纯装饰，不挡点击） */
-.bg-blobs{ position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.bg-blobs span{
-  position: absolute; font-size: 42px; opacity: .25;
-  animation: float 9s ease-in-out infinite;
-}
-@keyframes float{
-  0%,100%{ transform: translateY(0) rotate(-6deg); }
-  50%    { transform: translateY(-22px) rotate(8deg); }
-}
-
-/* 页面主体容器 */
-.wrap{ position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 16px; }
-
-/* ============================================================
-   2) 顶部标题栏
-   ============================================================ */
-header{ text-align: center; padding: 10px 4px 2px; }
-header h1{
-  margin: 0;
-  font-size: clamp(22px, 5vw, 30px);
-  color: #ff6f91;
-  text-shadow: 2px 2px 0 #fff, 4px 4px 0 var(--pink-soft);
-  letter-spacing: 1px;
-}
-header .sub{ color: var(--ink-light); font-size: 14px; margin-top: 4px; }
-
-/* 顶部数据条：已掌握 / 错题数 / 音效开关 */
-.stat-bar{
-  display: flex; gap: 8px; align-items: center; justify-content: center;
-  flex-wrap: wrap; margin: 12px 0 6px;
-}
-.stat-pill{
-  background: #fff; border: 2px dashed var(--pink-soft);
-  border-radius: 999px; padding: 4px 14px; font-size: 15px;
-  box-shadow: 0 3px 0 #ffeaf0;
-}
-.stat-pill b{ color: #ff6f91; }
-.icon-btn{
-  border: none; background: #fff; border-radius: 999px;
-  font-size: 19px; padding: 4px 12px; cursor: pointer;
-  box-shadow: 0 3px 0 #ffeaf0; transition: transform .15s;
+@@ -119,7 +120,7 @@
 }
 .icon-btn:hover{ transform: scale(1.1) rotate(-6deg); }
-
+/* 【新增】顶部「生成今日战报」按钮（独立样式，不影响上面已有的 .icon-btn / .stat-pill） */
+.stat-btn{
+  border: none; cursor: pointer; font-family: inherit;
+  font-size: 15px; font-weight: bold; color: #6b5320;
+@@ -222,6 +223,28 @@
+}
 /* ============================================================
    3) 导航（标签页）
    ============================================================ */
 nav.tabs{
-  display: flex; gap: 8px; margin: 14px 0 18px;
-  background: #fff; padding: 8px; border-radius: 999px;
-  box-shadow: var(--shadow); overflow-x: auto;
-}
-nav.tabs button{
-  flex: 1 1 0; min-width: 92px;
-  border: none; cursor: pointer; font-family: inherit; font-size: 16px;
-  padding: 10px 6px; border-radius: 999px; background: transparent;
-  color: var(--ink-light); font-weight: bold; white-space: nowrap;
-  transition: all .25s ease;
-}
-nav.tabs button:hover{ background: var(--yellow-soft); color: var(--ink); }
-nav.tabs button.active{
-  background: linear-gradient(135deg, var(--pink), #ffa8c0);
-  color: #fff; box-shadow: 0 4px 10px rgba(255,143,171,.5);
-}
-
-/* ============================================================
-   4) 页面切换的平滑过渡
-   ============================================================ */
-.page{ display: none; }
-.page.active{ display: block; animation: pageIn .45s cubic-bezier(.2,.8,.3,1.1); }
-@keyframes pageIn{
-  from{ opacity: 0; transform: translateY(18px) scale(.98); }
-  to  { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* 通用卡片 */
-.card{
-  background: var(--card); border-radius: var(--radius);
-  box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px;
-  border: 3px solid #fff;
-}
-
-/* 通用按钮 */
-.btn{
-  font-family: inherit; font-size: 17px; font-weight: bold;
-  border: none; border-radius: 999px; padding: 12px 20px;
-  cursor: pointer; color: #fff; transition: transform .15s, box-shadow .15s, filter .15s;
-}
-.btn:hover{ transform: translateY(-3px) scale(1.03); filter: brightness(1.05); }
-.btn:active{ transform: translateY(0) scale(.98); }
-.btn-pink  { background: linear-gradient(135deg,#ff9dbb,#ff7ba3); box-shadow: 0 5px 0 #f2a0b8; }
-.btn-mint  { background: linear-gradient(135deg,#7fe0c4,#4fc9a8); box-shadow: 0 5px 0 #86d9c1; }
-.btn-yellow{ background: linear-gradient(135deg,#ffd966,#ffc233); box-shadow: 0 5px 0 #e8bf5e; color:#6b5320; }
-.btn-ghost { background: #fff; color: var(--ink-light); box-shadow: 0 5px 0 #eee3e8; border:2px solid #f3e8ee; }
-.btn:disabled{ opacity:.45; cursor: not-allowed; transform:none; filter:grayscale(.4); }
-.btn-row{ display:flex; gap:10px; flex-wrap: wrap; justify-content:center; }
-
-/* 进度条 */
-.progress-wrap{ margin-top: 6px; }
-.progress{
-  height: 16px; background: #fdeef3; border-radius: 999px; overflow: hidden;
-  border: 2px solid #fff; box-shadow: inset 0 2px 4px rgba(255,143,171,.18);
-}
-.progress .bar{
-  height: 100%; width: 0%; border-radius: 999px;
-  background: linear-gradient(90deg, var(--yellow), var(--pink), var(--mint));
-  transition: width .5s cubic-bezier(.3,.9,.3,1);
-  background-size: 200% 100%;
-  animation: barFlow 3s linear infinite;
-}
-@keyframes barFlow{ from{ background-position: 0% 0; } to{ background-position: 200% 0; } }
-.quiz-head{ display:flex; align-items:center; gap:10px; flex-wrap: wrap; justify-content:space-between; }
-.level-tag{
-  background: var(--mint-soft); color:#2f8f74; font-weight:bold;
-  padding: 4px 14px; border-radius: 999px; font-size: 15px;
-  border: 2px dashed #a9e6d2;
-}
-.progress-text{ font-size: 14px; color: var(--ink-light); }
-
-/* ============================================================
-   5) 翻转卡片（单词 / 复习共用）
-   ============================================================ */
-.flip-card{
-  perspective: 1400px;                 /* 3D 透视，翻卡才有立体感 */
-  height: 340px; margin: 16px 0 6px;
-  cursor: pointer;
-}
-.flip-inner{
-  position: relative; width: 100%; height: 100%;
-  transform-style: preserve-3d;        /* 让背面也能显示 */
-  transition: transform .65s cubic-bezier(.3,.9,.3,1.05);
-}
-.flip-card.flipped .flip-inner{ transform: rotateY(180deg); }
-.face{
-  position: absolute; inset: 0;
-  backface-visibility: hidden;         /* 背面朝前时隐藏这个面 */
-  border-radius: var(--radius);
-  border: 4px solid #fff;
-  box-shadow: var(--shadow);
-  padding: 20px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center;
-  overflow: auto;
-}
-.face.front{ background: linear-gradient(150deg,#fff5f8,#fffdf0); }
-.face.back {
-  background: linear-gradient(150deg,#eafaf3,#fffdf0);
-  transform: rotateY(180deg);          /* 背面先翻过去 */
-}
-.word-en{ font-size: clamp(32px, 9vw, 46px); font-weight: bold; color:#ff6f91; letter-spacing: 1px; }
-.word-zh{ font-size: clamp(24px, 6vw, 30px); font-weight: bold; color:#2f8f74; }
-.example{ margin-top: 12px; font-size: 17px; color: var(--ink); }
-.example-zh{ margin-top: 6px; font-size: 15px; color: var(--ink-light); }
-.hint{ margin-top: 12px; font-size: 14px; color: var(--ink-light); }
-.pill{
-  background: var(--yellow-soft); color:#8a6a12; font-size: 13px; font-weight: bold;
-  padding: 2px 12px; border-radius: 999px; margin-bottom: 8px;
-}
-/* 卡片上的小喇叭按钮 */
-.speaker{
-  position: absolute; top: 12px; right: 14px;
-  border: none; background: var(--mint-soft); color:#2f8f74;
-  font-size: 22px; width: 48px; height: 48px; border-radius: 50%;
-  cursor: pointer; transition: transform .18s, background .18s;
-  box-shadow: 0 4px 0 #b8ebd9;
-}
-.speaker:hover{ transform: scale(1.14) rotate(-8deg); background:#bff0e0; }
-/* 已掌握小徽章 */
-.mastered-badge{
-  position: absolute; top: 12px; left: 14px; font-size: 14px;
-  background: var(--yellow-soft); color:#8a6a12; font-weight: bold;
-  padding: 3px 10px; border-radius: 999px; border:2px dashed #ffe08a;
-}
-
-/* ============================================================
-   6) 语法选择题
-   ============================================================ */
-.g-question{
-  font-size: clamp(19px, 4.6vw, 22px); font-weight: bold;
-  background: #fff; border-radius: 18px; padding: 16px;
-  border: 3px dashed var(--pink-soft); margin: 14px 0;
-}
-.opt{
-  display: block; width: 100%; text-align: left; margin: 10px 0;
-  font-family: inherit; font-size: 17px; font-weight: bold;
-  background: #fff; color: var(--ink);
-  border: 3px solid var(--yellow-soft); border-radius: 18px;
-  padding: 13px 18px; cursor: pointer;
-  transition: transform .15s, background .2s, border-color .2s;
-}
-.opt:hover{ transform: translateX(6px); background: var(--yellow-soft); }
-.opt.correct{ background: var(--mint-soft); border-color: var(--mint); color:#237c63; }
-.opt.wrong  { background: #ffe3ea; border-color: var(--pink); color:#c9425f; }
-.opt:disabled{ cursor: default; }
-.g-analysis{
-  background: linear-gradient(150deg,#fffbe8,#f3fdf8);
-  border-left: 8px solid var(--yellow); border-radius: 16px;
-  padding: 14px 16px; font-size: 16px; margin-top: 8px;
-  animation: pageIn .35s ease;
-}
-.g-analysis b{ color:#2f8f74; }
-
-/* ============================================================
-   7) 错题本
-   ============================================================ */
-.wrong-item{
-  background: #fff; border-radius: 18px; padding: 14px 16px; margin-bottom: 12px;
-  border: 3px solid var(--pink-soft); box-shadow: 0 5px 0 #ffeef4;
-  transition: transform .18s;
-}
-.wrong-item:hover{ transform: translateY(-3px); }
-.wrong-head{ display:flex; gap:10px; align-items:flex-start; cursor: pointer; }
-.wrong-head .q{ flex:1; font-weight: bold; font-size: 16px; }
-.badge{
-  font-size: 13px; font-weight: bold; padding: 2px 10px; border-radius: 999px; white-space: nowrap;
-}
-.badge-count{ background:#ffe3ea; color:#c9425f; }
-.badge-type { background: var(--mint-soft); color:#2f8f74; }
-.wrong-detail{
-  margin-top: 12px; border-top: 2px dashed #f4e6ec; padding-top: 10px;
-  font-size: 15.5px; display: none;
-}
-.wrong-item.open .wrong-detail{ display: block; animation: pageIn .3s ease; }
-.wrong-detail p{ margin: 6px 0; }
-.wrong-detail .k{ color: var(--ink-light); }
-.mine{ color:#c9425f; font-weight: bold; }
-.right{ color:#237c63; font-weight: bold; }
-.stars{ letter-spacing: 2px; }
-.tip-row{ display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap:10px; }
-.empty{ text-align:center; color: var(--ink-light); padding: 26px 10px; font-size: 17px; }
-.review-area{
-  background: linear-gradient(150deg,#fff8fb,#f2fdf8);
-  border: 3px dashed var(--mint); border-radius: var(--radius);
-  padding: 14px; margin-bottom: 16px; animation: pageIn .35s ease;
-}
-.hidden{ display: none !important; }
-
-/* ============================================================
-   8) 听歌学英语
-   ============================================================ */
-.song{ background: #fff; border-radius: var(--radius); margin-bottom: 14px; overflow: hidden;
-       box-shadow: var(--shadow); border: 3px solid #fff; }
-.song-head{
-  display:flex; align-items:center; gap:12px; cursor:pointer; padding: 16px 18px;
-  transition: background .2s;
-}
-.song-head:hover{ background: var(--yellow-soft); }
-.song-head .cover{
-  width: 46px; height: 46px; border-radius: 14px; flex: 0 0 auto;
-  display:grid; place-items:center; font-size: 24px;
-  background: linear-gradient(135deg,var(--pink-soft),var(--mint-soft));
-}
-.song-head .title{ flex:1; }
-.song-head .title b{ font-size: 18px; color:#ff6f91; display:block; }
-.song-head .title span{ font-size: 14px; color: var(--ink-light); }
-.song-head .arrow{ font-size: 18px; color: var(--ink-light); transition: transform .3s; }
-.song.open .song-head .arrow{ transform: rotate(90deg); }
-.lyrics{ display:none; padding: 4px 18px 18px; }
-.song.open .lyrics{ display:block; animation: pageIn .35s ease; }
-.lyric-row{ padding: 8px 0; border-bottom: 1px dashed #f5ebef; }
-.lyric-row .en{ font-size: 17px; font-weight: bold; color:#3f3550; }
-.lyric-row .zh{ font-size: 15px; color: var(--ink-light); }
-
-/* ============================================================
-   9) 过关庆祝动画（星星 + 彩带 + 文字）
-   ============================================================ */
-.celebrate-layer{
-  position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden;
-}
-.confetti-piece{
-  position: absolute; top: -40px; font-size: 24px;
-  animation: fall 2.6s linear forwards;
-}
-@keyframes fall{
-  0%  { transform: translateY(-40px) rotate(0deg);   opacity: 1; }
-  100%{ transform: translateY(105vh) rotate(540deg); opacity: .1; }
-}
-.celebrate-modal{
-  position: fixed; inset: 0; z-index: 95; display: none;
-  align-items: center; justify-content: center; background: rgba(255,240,246,.55);
-  backdrop-filter: blur(2px); pointer-events: none;
-}
-.celebrate-modal.show{ display: flex; }
-.celebrate-box{
-  background: #fff; border-radius: 30px; padding: 28px 34px; text-align: center;
-  border: 5px solid var(--yellow); box-shadow: 0 14px 30px rgba(255,143,171,.4);
-  animation: pop .5s cubic-bezier(.2,1.4,.4,1);
-}
-@keyframes pop{
-  0%  { transform: scale(.4) rotate(-8deg); opacity: 0; }
-  70% { transform: scale(1.08) rotate(3deg); opacity: 1; }
-  100%{ transform: scale(1); opacity: 1; }
-}
-.celebrate-box .big{ font-size: clamp(26px, 7vw, 36px); font-weight: bold; color:#ff6f91; }
-.celebrate-box .small{ font-size: 16px; color: var(--ink-light); margin-top: 6px; }
-
-/* 小屏手机优化 */
-@media (max-width: 480px){
-  body{ font-size: 17px; }
-  .wrap{ padding: 10px; }
-  .flip-card{ height: 320px; }
-  nav.tabs button{ font-size: 15px; }
-  .btn{ font-size: 16px; padding: 11px 16px; }
-}
-</style>
-</head>
-<body>
-
-<!-- 背景装饰小图标 -->
-<div class="bg-blobs">
-  <span style="left:5%;  top:12%;">🌸</span>
-  <span style="left:88%; top:18%; animation-delay:1.2s;">⭐</span>
-  <span style="left:12%; top:62%; animation-delay:2.1s;">📐</span>
-  <span style="left:80%; top:70%; animation-delay:.6s;">🏛️</span>
-  <span style="left:48%; top:88%; animation-delay:1.7s;">💛</span>
-</div>
-
-<div class="wrap">
-
+@@ -498,12 +521,12 @@
   <!-- ============ 顶部标题 + 数据条 ============ -->
   <header>
     <h1>🌸 英语学习小站 🌸</h1>
@@ -394,1046 +283,509 @@ nav.tabs button.active{
     <div class="stat-bar">
       <div class="stat-pill">已掌握单词 <b id="statMastered">0</b>/50</div>
       <div class="stat-pill">错题本 <b id="statWrong">0</b> 条</div>
+      <!-- 【新增】一键生成今日学习战报并复制到剪贴板 -->
+      <button class="stat-btn" id="btnReport" title="生成今日学习战报并复制">📊 生成今日战报</button>
       <button class="icon-btn" id="btnMute" title="开关音效">🔊</button>
     </div>
   </header>
-
-  <!-- ============ 导航标签 ============ -->
-  <nav class="tabs">
-    <button class="active" data-page="word">🎮 单词闯关</button>
-    <button data-page="grammar">🧠 语法闯关</button>
-    <button data-page="wrong">📕 错题本</button>
-    <button data-page="song">🎵 听歌学英语</button>
-  </nav>
-
-  <main>
-    <!-- ==================================================================
-         页面 1：单词闯关
-         ================================================================== -->
-    <section class="page active" id="page-word">
-      <div class="card">
-        <div class="quiz-head">
-          <div class="level-tag" id="wordLevelTag">第 1 关</div>
-          <div class="progress-text" id="wordProgressText">0 / 50</div>
+@@ -651,7 +674,7 @@
+        <!-- 圆环 + 剩余时间：--p 由 JS 控制，表示今日 15 分钟的完成百分比 -->
+        <div class="timer-ring" id="timerRing">
+          <div class="timer-time" id="timerText">15:00</div>
+          <div class="timer-sub" id="timerSub">点「开始」进入 15 分钟专注</div>
         </div>
-        <div class="progress-wrap">
-          <div class="progress"><div class="bar" id="wordBar"></div></div>
+        <div class="progress-wrap" style="margin-top:6px;">
+@@ -672,7 +695,7 @@
+          <button class="cal-nav" id="btnCalNext" title="下一月">›</button>
         </div>
-
-        <!-- 翻转单词卡：正面英文 + 喇叭，背面中文 + 例句 -->
-        <div class="flip-card" id="wordCard">
-          <div class="flip-inner">
-            <div class="face front">
-              <div class="mastered-badge hidden" id="wordBadge">⭐ 已掌握</div>
-              <button class="speaker" id="wordSpeaker" title="朗读这个单词">🔊</button>
-              <div class="word-en" id="wordEn">ancient</div>
-              <div class="hint">先自己想想意思，点卡片翻面看答案 👆</div>
-            </div>
-            <div class="face back">
-              <div class="pill">中文意思</div>
-              <div class="word-zh" id="wordZh">古代的</div>
-              <div class="example" id="wordEx"></div>
-              <div class="example-zh" id="wordExZh"></div>
-            </div>
-          </div>
+        <div class="cal-summary">
+          <span>🔥 连续打卡 <b id="calStreak">0</b> 天</span>
+          <span>📅 本月打卡 <b id="calMonthDays">0</b> 天</span>
         </div>
-
-        <!-- 自评按钮：答对记已掌握，答错进错题本 -->
-        <div class="btn-row" id="wordAnswerRow">
-          <button class="btn btn-mint" id="btnKnown">我记住了 ✓</button>
-          <button class="btn btn-pink" id="btnUnknown">还不熟 ✗</button>
-        </div>
-        <div class="hint" id="wordHintText" style="text-align:center;">（翻面之后再选择，不要偷看答案哦 😜）</div>
-      </div>
-    </section>
-
-    <!-- ==================================================================
-         页面 2：语法闯关
-         ================================================================== -->
-    <section class="page" id="page-grammar">
-      <div class="card">
-        <div class="quiz-head">
-          <div class="level-tag" id="gLevelTag">第 1 关</div>
-          <div class="progress-text" id="gProgressText">0 / 10</div>
-        </div>
-        <div class="progress-wrap">
-          <div class="progress"><div class="bar" id="gBar"></div></div>
-        </div>
-        <div class="g-question" id="gQuestion">加载中…</div>
-        <div id="gOptions"></div>
-        <div class="g-analysis hidden" id="gAnalysis"></div>
-        <div class="btn-row" style="margin-top:14px;">
-          <button class="btn btn-yellow hidden" id="btnNextG">下一题 →</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================================================================
-         页面 3：错题本
-         ================================================================== -->
-    <section class="page" id="page-wrong">
-      <div class="card">
-        <div class="tip-row">
-          <div style="font-weight:bold;">📕 我的错题本（按错误次数从多到少）</div>
-          <div class="btn-row">
-            <button class="btn btn-pink" id="btnStartReview">🔁 开始复习</button>
-            <button class="btn btn-ghost" id="btnClearWrong">🗑 清空</button>
-          </div>
-        </div>
-        <div class="hint" style="margin-top:6px;">点每一条可以展开看「我选的 / 正确答案 / 解析」；复习用翻卡模式，像不背单词那样 👍</div>
-      </div>
-
-      <!-- 翻卡复习区（点"开始复习"才出现） -->
-      <div class="review-area hidden" id="reviewArea">
-        <div class="tip-row">
-          <div style="font-weight:bold;">🔁 翻卡复习中 <span id="reviewIdx">1</span> / <span id="reviewTotal">1</span></div>
-          <button class="btn btn-ghost" id="btnExitReview">退出复习</button>
-        </div>
-        <div class="flip-card" id="reviewCard">
-          <div class="flip-inner">
-            <div class="face front">
-              <div class="pill">题目</div>
-              <div id="reviewQ" style="font-size:19px;font-weight:bold;"></div>
-              <div class="hint">点卡片翻面看正确答案 + 解析 👆</div>
-            </div>
-            <div class="face back">
-              <div class="pill">正确答案</div>
-              <div class="right" id="reviewA" style="font-size:22px;"></div>
-              <div class="g-analysis" id="reviewAna" style="margin-top:10px;font-size:15px;"></div>
-            </div>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-mint" id="btnGotIt">我记住了 👍</button>
-          <button class="btn btn-pink" id="btnNotYet">还不熟 😵</button>
-        </div>
-      </div>
-
-      <div id="wrongList"></div>
-      <div class="empty hidden" id="wrongEmpty">🎉 错题本是空的，太厉害了吧！</div>
-    </section>
-
-    <!-- ==================================================================
-         页面 4：听歌学英语
-         ================================================================== -->
-    <section class="page" id="page-song">
-      <div class="card" style="text-align:center;">
-        <div style="font-weight:bold;font-size:19px;color:#ff6f91;">🎵 点开歌名，看歌词 + 中文翻译</div>
-        <div class="hint">边听边看歌词，耳朵会慢慢变灵的～（这里只放歌词，音频请自己用音乐软件播放）</div>
-      </div>
-      <div id="songList"></div>
-    </section>
-  </main>
-
+        <div class="cal-weekdays">
+@@ -691,8 +714,27 @@
   <div class="hint" style="text-align:center;margin-top:10px;">
     进度自动保存在这台设备上 · 换设备或清理浏览器数据会重置哦 🌱
   </div>
 </div>
-
-<!-- 庆祝动画的图层与弹窗 -->
-<div class="celebrate-layer" id="confettiLayer"></div>
-<div class="celebrate-modal" id="celebrateModal">
-  <div class="celebrate-box">
-    <div class="big" id="celebrateText">你真棒！</div>
-    <div class="small" id="celebrateSub">继续加油 💪</div>
-  </div>
-</div>
-
-<script>
-/* =====================================================================================
-   第一部分：初始数据（单词 / 语法题 / 歌词）
-   例句尽量结合数学和历史，配合"逻辑强、喜欢历史"的使用者
-   ===================================================================================== */
-
-/* ---------- 50 个初二核心单词：w=英文, z=中文, e=英文例句, ez=例句中文翻译 ---------- */
-const WORDS = [
-  { w:"ancient",    z:"古代的",     e:"In ancient Greece, people used geometry to measure land.",      ez:"在古希腊，人们用几何学来丈量土地。" },
-  { w:"century",    z:"世纪",       e:"The 18th century was full of new math discoveries.",            ez:"18 世纪充满了新的数学发现。" },
-  { w:"history",    z:"历史",       e:"History shows us why people made those choices.",               ez:"历史让我们看到人们为什么做出那些选择。" },
-  { w:"culture",    z:"文化",       e:"Ancient Chinese culture invented many clever tools.",           ez:"中国古代文化发明了很多巧妙的工具。" },
-  { w:"emperor",    z:"皇帝",       e:"The emperor asked his scholars to measure the whole land.",     ez:"皇帝让学者们丈量整片国土。" },
-  { w:"invention",  z:"发明",       e:"The invention of the compass changed sailing forever.",         ez:"指南针的发明永远改变了航海。" },
-  { w:"discover",   z:"发现",       e:"Newton discovered gravity when an apple fell down.",            ez:"苹果落下时，牛顿发现了万有引力。" },
-  { w:"scientist",  z:"科学家",     e:"A good scientist trusts evidence, not guesses.",                ez:"好的科学家相信证据，而不是猜测。" },
-  { w:"knowledge",  z:"知识",       e:"Knowledge grows when you connect old ideas with new ones.",     ez:"当旧知识连上新想法，知识就长大了。" },
-  { w:"reason",     z:"原因；推理", e:"There is always a reason behind every equation.",               ez:"每个方程背后都有原因。" },
-  { w:"problem",    z:"问题",       e:"Every math problem has a logical path to follow.",              ez:"每道数学题都有一条可以跟着走的逻辑路径。" },
-  { w:"solution",   z:"解决办法",   e:"Check your solution by putting the number back in.",            ez:"把数字代回去，就能检验你的解。" },
-  { w:"result",     z:"结果",       e:"The result of three times four is twelve.",                     ez:"3 乘 4 的结果是 12。" },
-  { w:"equal",      z:"相等的",     e:"Both sides of an equation must be equal.",                      ez:"等式两边必须相等。" },
-  { w:"measure",    z:"测量",       e:"The workers measured the wall before they built it.",           ez:"工人们在砌墙之前先测量了墙体。" },
-  { w:"distance",   z:"距离",       e:"The distance between the two cities is 200 kilometres.",       ez:"这两座城市之间的距离是 200 公里。" },
-  { w:"weight",     z:"重量",       e:"The weight of the stone is about five kilograms.",              ez:"这块石头的重量大约是五公斤。" },
-  { w:"average",    z:"平均的",     e:"The average of 2, 4 and 6 is 4.",                               ez:"2、4、6 的平均数是 4。" },
-  { w:"increase",   z:"增加",       e:"The population increased quickly in the 19th century.",         ez:"19 世纪人口迅速增加。" },
-  { w:"decrease",   z:"减少",       e:"When x is negative, the value will decrease.",                  ez:"当 x 是负数时，这个值会减小。" },
-  { w:"double",     z:"两倍",       e:"Double fifteen and you get thirty.",                            ez:"15 的两倍是 30。" },
-  { w:"half",       z:"一半",       e:"Half of one hundred is fifty.",                                 ez:"100 的一半是 50。" },
-  { w:"total",      z:"总数",       e:"The total of the three numbers is eighteen.",                   ez:"这三个数的总数是 18。" },
-  { w:"percent",    z:"百分之……",   e:"About seventy percent of the Earth is covered by water.",      ez:"地球大约 70% 的面积被水覆盖。" },
-  { w:"number",     z:"数字",       e:"An odd number cannot be divided by two exactly.",              ez:"奇数不能被 2 整除。" },
-  { w:"figure",     z:"数字；图形", e:"Draw the figure on paper before you solve it.",                 ez:"解题之前先把这个图形画在纸上。" },
-  { w:"angle",      z:"角",         e:"The three angles of a triangle add up to 180 degrees.",         ez:"三角形的三个角加起来是 180 度。" },
-  { w:"circle",     z:"圆",         e:"A circle has no corner, just like a story has no end.",         ez:"圆没有角，就像故事没有终点。" },
-  { w:"square",     z:"正方形",     e:"A square has four equal sides and four right angles.",          ez:"正方形有四条相等的边和四个直角。" },
-  { w:"shape",      z:"形状",       e:"From the side, a pyramid looks like a triangle.",               ez:"从侧面看，金字塔像一个三角形。" },
-  { w:"record",     z:"记录",       e:"Chinese historians kept careful records for thousands of years.",ez:"中国的史学家认真地记录了数千年的事情。" },
-  { w:"protect",    z:"保护",       e:"The Great Wall was built to protect the country.",              ez:"长城的修建是为了保护国家。" },
-  { w:"powerful",   z:"强大的",     e:"The Roman army was very powerful in ancient times.",            ez:"古时候罗马军队非常强大。" },
-  { w:"trade",      z:"贸易",       e:"The Silk Road made trade between East and West possible.",      ez:"丝绸之路让东西方之间的贸易成为可能。" },
-  { w:"treasure",   z:"宝藏",       e:"The king hid his treasure under the palace.",                   ez:"国王把宝藏藏在宫殿下面。" },
-  { w:"battle",     z:"战役",       e:"That battle changed the history of the whole country.",         ez:"那场战役改变了整个国家的历史。" },
-  { w:"peace",      z:"和平",       e:"After the war came a long period of peace.",                    ez:"战争之后是一段很长的和平时期。" },
-  { w:"revolution", z:"革命",       e:"The Industrial Revolution started in Britain.",                 ez:"工业革命始于英国。" },
-  { w:"government", z:"政府",       e:"The government made a new law last year.",                      ez:"政府去年制定了一条新法律。" },
-  { w:"society",    z:"社会",       e:"Math helps a society build bridges and cities.",               ez:"数学帮助社会建造桥梁和城市。" },
-  { w:"improve",    z:"提高",       e:"Practice can improve your listening step by step.",            ez:"练习能让你的听力一步一步提高。" },
-  { w:"realize",    z:"意识到",     e:"I realized my mistake after I checked the answer.",             ez:"核对答案后，我意识到了自己的错误。" },
-  { w:"careful",    z:"仔细的",     e:"Be careful with the minus sign; it changes everything.",       ez:"小心负号，它能改变一切。" },
-  { w:"patient",    z:"有耐心的",   e:"A patient student will find the answer sooner or later.",       ez:"有耐心的学生迟早会找到答案。" },
-  { w:"curious",    z:"好奇的",     e:"Curious people ask 'why', just like a good detective.",         ez:"好奇的人会问「为什么」，就像好侦探一样。" },
-  { w:"imagine",    z:"想象",       e:"Imagine a world where nobody could count.",                     ez:"想象一个没有人会数数的世界。" },
-  { w:"compare",    z:"比较",       e:"Compare the two answers before you choose one.",                ez:"选择之前先比较这两个答案。" },
-  { w:"explain",    z:"解释",       e:"Can you explain how you got this result?",                      ez:"你能解释一下你是怎么得到这个结果的吗？" },
-  { w:"understand", z:"理解",       e:"If you understand the rule, you needn't memorize it.",          ez:"如果你理解了规则，就不需要背它。" },
-  { w:"remember",   z:"记住",       e:"We remember stories much better than lists of words.",          ez:"故事比单词表更容易被记住。" }
-];
-
-/* ---------- 10 道初二语法选择题：q=题目, opts=三个选项, ans=正确选项下标, ana=幽默逻辑解析 ---------- */
-const GRAMMAR = [
-  { q:"She ______ to school by bike every day.",
-    opts:["go","goes","going"], ans:1,
-    ana:"主语 She 是第三人称单数，动词得加 s。这跟数学里配平一样——左边变了，右边也得跟着变，不然等式就不成立。" },
-
-  { q:"There ______ some milk in the glass.",
-    opts:["are","is","be"], ans:1,
-    ana:"milk 是不可数名词，就像一堆散沙只算「一份」，所以 be 动词用单数 is。可数复数才配 are。" },
-
-  { q:"I ______ my homework when my mother came back.",
-    opts:["do","did","was doing"], ans:2,
-    ana:"「妈妈回来」是过去的一个瞬间，而写作业在那时正在进行。用过去进行时，相当于给视频按了暂停键：画面停在那一刻。" },
-
-  { q:"He is good at ______ math problems.",
-    opts:["solve","solving","solved"], ans:1,
-    ana:"at 是介词，介词后面动词要变成 -ing 形式。跟「括号前有负号，里面全部要变号」是同一种规矩感。" },
-
-  { q:"This book is ______ than that one.",
-    opts:["interesting","more interesting","most interesting"], ans:1,
-    ana:"than 就是「比」的等号，两者比较用比较级。长单词（三个音节以上）自己加不了 -er，就请 more 来帮忙，像给长名字加个前缀。" },
-
-  { q:"If it ______ tomorrow, we will stay at home.",
-    opts:["rains","will rain","rained"], ans:0,
-    ana:"if 条件句的规矩是「主将从现」：主句用将来时，从句用现在时。先算已知条件，再求结果——条件还没发生，就别急着用将来时。" },
-
-  { q:"The man ______ is talking to Tom is my uncle.",
-    opts:["which","who","whose"], ans:1,
-    ana:"先行词 the man 是「人」，所以用 who；which 只服务物品。分工明确了，句子才不会打架。" },
-
-  { q:"Neither Tom nor I ______ good at singing.",
-    opts:["am","is","are"], ans:0,
-    ana:"neither...nor 用「就近原则」：动词跟着离它最近的主语走。最近的是 I，所以用 am——跟「取最近邻」是一个思路。" },
-
-  { q:"He has lived here ______ 2015.",
-    opts:["for","since","in"], ans:1,
-    ana:"since 后面接「时间点」，for 后面接「时间长度」。2015 是一个点，不是一段长度，就像坐标轴上的一个点和一个区间不能混用。" },
-
-  { q:"The homework ______ by the students yesterday.",
-    opts:["finished","was finished","finishes"], ans:1,
-    ana:"作业是「被」完成的，而且时间是 yesterday，所以用一般过去时的被动语态 was + 过去分词。相当于把主语从「做事的人」换成「被做的事」。" }
-];
-
-/* ---------- 3 首英文歌的歌词 + 中文翻译（仅供学习使用，取副歌等片段） ---------- */
-const SONGS = [
-  {
-    title:"Count on Me", artist:"Bruno Mars", emoji:"🤝",
-    lines:[
-      { en:"If you ever find yourself stuck in the middle of the sea,", zh:"如果你发现自己困在大海中央，" },
-      { en:"I'll sail the world to find you.",                          zh:"我会航遍全世界去找你。" },
-      { en:"If you ever find yourself lost in the dark and you can't see,", zh:"如果你发现自己迷失在黑暗里、什么都看不见，" },
-      { en:"I'll be the light to guide you.",                           zh:"我会成为那束指引你的光。" },
-      { en:"We'll find out what we're made of",                         zh:"我们会发现自己的本质，" },
-      { en:"when we are called to help our friends in need.",           zh:"当我们被呼唤去帮助需要帮助的朋友时。" },
-      { en:"You can count on me like one, two, three,",                 zh:"你可以依靠我，就像数 1、2、3 一样简单，" },
-      { en:"I'll be there.",                                            zh:"我会一直在你身边。" }
-    ]
-  },
-  {
-    title:"Lemon Tree", artist:"Fools Garden", emoji:"🍋",
-    lines:[
-      { en:"I'm sitting here in the boring room,",                      zh:"我坐在这间无聊的房间里，" },
-      { en:"it's just another rainy Sunday afternoon.",                 zh:"又一个下着雨的星期天下午。" },
-      { en:"I'm wasting my time, I got nothing to do.",                 zh:"我在浪费时间，无事可做。" },
-      { en:"I'm hanging around, I'm waiting for you.",                  zh:"我四处晃荡，等着你。" },
-      { en:"But nothing ever happens and I wonder.",                    zh:"可什么都没发生，我很好奇。" },
-      { en:"I wonder how, I wonder why.",                               zh:"我想知道怎么做，我想知道为什么。" },
-      { en:"Yesterday you told me 'bout the blue blue sky,",            zh:"昨天你还跟我讲那蓝蓝的天空，" },
-      { en:"and all that I can see is just a yellow lemon tree.",       zh:"而我能看到的只有一棵黄色的柠檬树。" }
-    ]
-  },
-  {
-    title:"Big Big World", artist:"Emilia", emoji:"🌍",
-    lines:[
-      { en:"I'm a big big girl in a big big world.",                    zh:"我是这大大的世界里一个小小的女孩。" },
-      { en:"It's not a big big thing if you leave me.",                 zh:"如果你离开我，那也没什么大不了的。" },
-      { en:"But I do do feel that I do do will miss you much.",         zh:"但我确实会觉得，我会非常非常想你。" },
-      { en:"Miss you much.",                                            zh:"非常想你。" },
-      { en:"I can see the first leaf falling.",                         zh:"我能看见第一片叶子落下。" },
-      { en:"It's all yellow and nice.",                                 zh:"黄黄的，很好看。" },
-      { en:"It's so very cold outside,",                                zh:"外面非常冷，" },
-      { en:"like the way I'm feeling inside.",                          zh:"就像我心里的感觉一样。" }
-    ]
-  }
-];
-
-/* =====================================================================================
-   第二部分：本地存储（localStorage）—— 所有进度都存这里，刷新不丢
-   ===================================================================================== */
-const STORE_KEY = "englishStation_v1";   // 存储键名（想"重置全部进度"就改这个版本号）
-
-/* 默认状态（第一次打开时用） */
-function defaultState(){
-  return {
-    masteredWords: [],   // 已掌握的单词（存英文单词）
-    wordLevel: 0,        // 单词闯关：当前第几关（从 0 开始，一共 10 关）
-    wordPos: 0,          // 单词闯关：本关内当前第几个（0~4）
-    grammarLevel: 0,     // 语法闯关：当前第几关（一共 2 关）
-    grammarPos: 0,       // 语法闯关：本关内当前第几题（0~4）
-    wrongBook: [],       // 错题本数组
-    mute: false          // 是否静音
-  };
-}
-
-let state = defaultState();
-
-/* 读取本地数据（如果坏了就回到默认值，保证页面一定能用） */
-function loadState(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(raw){
-      const obj = JSON.parse(raw);
-      state = Object.assign(defaultState(), obj);   // 合并，兼容以后新增字段
-    }
-  }catch(e){
-    console.warn("读取本地数据失败，已使用默认数据：", e);
-    state = defaultState();
-  }
-}
-
-/* 保存数据到本地 */
-function saveState(){
-  try{
-    localStorage.setItem(STORE_KEY, JSON.stringify(state));
-  }catch(e){
-    console.warn("保存失败（可能是浏览器隐私模式）：", e);
-  }
-}
-
-/* =====================================================================================
-   第三部分：音效（用 Web Audio API 现场合成，不需要任何 mp3 文件）
-   ===================================================================================== */
-let audioCtx = null;
-
-/* 取出/创建 AudioContext（浏览器要求必须在用户点击后才能创建） */
-function getCtx(){
-  if(!audioCtx){
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return null;
-    audioCtx = new AC();
-  }
-  if(audioCtx.state === "suspended") audioCtx.resume();
-  return audioCtx;
-}
-
-/* 播放一个单音：freq=频率, delay=延迟秒数, dur=时长秒数 */
-function beep(freq, delay, dur, type, vol){
-  const ctx = getCtx();
-  if(!ctx) return;
-  const osc  = ctx.createOscillator();     // 振荡器：产生声音
-  const gain = ctx.createGain();           // 音量控制
-  osc.type = type || "sine";
-  osc.frequency.value = freq;
-  const t0 = ctx.currentTime + delay;
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(vol || 0.14, t0 + 0.02);   // 淡入，避免爆音
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);         // 淡出
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(t0);
-  osc.stop(t0 + dur + 0.02);
-}
-
-/* 各种音效：答对 / 答错 / 翻卡 / 过关 */
-function sfx(name){
-  if(state.mute) return;
-  if(name === "correct"){                 // 答对：两个上行音，听着就开心
-    beep(880, 0,    0.12, "sine");
-    beep(1320, 0.11, 0.16, "sine");
-  }else if(name === "wrong"){             // 答错：两个下行音，温和不吓人
-    beep(320, 0,    0.14, "triangle");
-    beep(220, 0.13, 0.20, "triangle");
-  }else if(name === "flip"){              // 翻卡：短促的"嗒"
-    beep(660, 0, 0.06, "square", 0.06);
-  }else if(name === "levelUp"){           // 过关：小琶音 + 高音收尾
-    [523, 659, 784, 1047].forEach(function(f, i){ beep(f, i * 0.12, 0.18, "sine"); });
-    beep(1568, 0.52, 0.35, "sine", 0.10);
-  }else if(name === "click"){
-    beep(520, 0, 0.05, "sine", 0.05);
-  }
-}
-
-/* =====================================================================================
-   第四部分：朗读（浏览器自带 speechSynthesis API）
-   ===================================================================================== */
-let enVoice = null;
-
-/* 挑选一个英语音色（系统里通常有好几个） */
-function pickVoice(){
-  if(!("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices() || [];
-  if(!voices.length) return null;
-  // 优先找 en-US / en-GB 的音色
-  return voices.find(function(v){ return /^en[-_]US/i.test(v.lang); })
-      || voices.find(function(v){ return /^en/i.test(v.lang); })
-      || null;
-}
-
-/* 朗读一段英文文本 */
-function speak(text){
-  if(!("speechSynthesis" in window)){ alert("这个浏览器不支持朗读功能，换 Chrome 或 Edge 试试～"); return; }
-  window.speechSynthesis.cancel();                 // 先停掉上一句，避免叠在一起
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang  = "en-US";
-  u.rate  = 0.85;                                  // 放慢一点，方便跟读
-  u.pitch = 1.05;
-  const v = enVoice || pickVoice();
-  if(v) u.voice = v;
-  window.speechSynthesis.speak(u);
-}
-
-/* 有些浏览器音色列表是异步加载的，加载好之后再取一次 */
-if("speechSynthesis" in window){
-  window.speechSynthesis.onvoiceschanged = function(){ enVoice = pickVoice(); };
-  enVoice = pickVoice();
-}
-
-/* =====================================================================================
-   第五部分：通用 UI 小工具（庆祝动画、切页、音效按钮、状态刷新）
-   ===================================================================================== */
-
-/* 撒星星彩带 */
-function throwConfetti(){
-  const layer = document.getElementById("confettiLayer");
-  const icons = ["⭐","🎉","💖","🌟","🍬","✨","🎊","💛"];
-  for(let i = 0; i < 30; i++){
-    const p = document.createElement("div");
-    p.className = "confetti-piece";
-    p.textContent = icons[i % icons.length];
-    p.style.left = (Math.random() * 100) + "%";
-    p.style.fontSize = (18 + Math.random() * 22) + "px";
-    p.style.animationDelay = (Math.random() * 0.7) + "s";
-    p.style.animationDuration = (2 + Math.random() * 1.2) + "s";
-    layer.appendChild(p);
-    setTimeout(function(){ p.remove(); }, 3800);   // 动画结束就删掉，别让 DOM 越积越多
-  }
-}
-
-/* 弹出鼓励弹窗（文字可自定义） */
-function celebrate(text, sub, ms){
-  const modal = document.getElementById("celebrateModal");
-  document.getElementById("celebrateText").textContent = text;
-  document.getElementById("celebrateSub").textContent  = sub || "继续加油 💪";
-  modal.classList.add("show");
-  throwConfetti();
-  sfx("levelUp");
-  setTimeout(function(){ modal.classList.remove("show"); }, ms || 2000);
-}
-
-/* 切换页面标签 */
-function switchPage(name){
-  document.querySelectorAll("nav.tabs button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.page === name);
-  });
-  document.querySelectorAll(".page").forEach(function(sec){
-    sec.classList.toggle("active", sec.id === "page-" + name);
-  });
-  if(name === "wrong") renderWrongBook();   // 每次进错题本都刷新一下
-}
-document.querySelectorAll("nav.tabs button").forEach(function(b){
-  b.addEventListener("click", function(){ sfx("click"); switchPage(b.dataset.page); });
+<!-- 【新增】打印专用容器：屏幕上始终隐藏（.print-sheet），只有打印时才会显示 -->
+<div class="print-sheet" id="printSheet"></div>
+@@ -1348,7 +1390,7 @@
+  const words = currentLevelWords();
+  const w = words[state.wordPos];
+  if(!w) return;
+  // 【新增】只有"第一次掌握"才计入今日战报，重复点不会重复计数
+  if(state.masteredWords.indexOf(w.w) === -1){
+    state.masteredWords.push(w.w);   // 标记已掌握
+    recordDaily("mastered");         // 今日已掌握 +1（战报和日历都用这个数）
+@@ -1613,7 +1655,7 @@
 });
-
-/* 顶部统计数字 + 音效图标 刷新 */
-function refreshStats(){
-  document.getElementById("statMastered").textContent = state.masteredWords.length;
-  document.getElementById("statWrong").textContent    = state.wrongBook.length;
-  document.getElementById("btnMute").textContent      = state.mute ? "🔇" : "🔊";
-}
-
-/* 音效开关 */
-document.getElementById("btnMute").addEventListener("click", function(){
-  state.mute = !state.mute;
-  saveState();
-  refreshStats();
-  if(!state.mute) sfx("click");
-});
-
 /* =====================================================================================
-   第六部分：错题本的核心逻辑（新增 / 更新 / 渲染 / 复习）
+   第十一部分【新增】：生成今日学习战报 → 复制到剪贴板 → 提醒去微信粘贴
    ===================================================================================== */
-
-/*
-  一条错题的数据结构：
-  {
-    id:         "w_ancient" / "g_3"      唯一标识，用来合并重复错题
-    type:       "word" | "grammar"       题型
-    question:   "单词：ancient"          题目
-    myAnswer:   "我选了 A. go"            我选的答案
-    rightAnswer:"B. goes"                正确答案
-    analysis:   "解析文字（含例句、幽默讲解）"
-    count:      3                        错误次数
-    level:      0~3                      掌握程度（0 完全不会，3 已掌握）
-    lastReview: 时间戳                   最后复习时间
-  }
-*/
-
-/* 新增或更新一条错题 */
-function addWrong(item){
-  const found = state.wrongBook.find(function(x){ return x.id === item.id; });
-  if(found){
-    found.count += 1;                     // 又错了一次，错误次数 +1
-    found.myAnswer = item.myAnswer;       // 更新这次的答案
-    found.lastReview = Date.now();
-    // 又错了说明其实还没掌握，掌握度回到 0 或 1
-    found.level = Math.max(0, found.level - 1);
-  }else{
-    item.count = 1;
-    item.level = 0;
-    item.lastReview = Date.now();
-    state.wrongBook.push(item);
-  }
-  saveState();
-  refreshStats();
+/* 直接读 localStorage 里的存档（而不是内存里的 state）：
+@@ -1630,19 +1672,49 @@
+  return state;
 }
-
-/* 格式化时间：显示成 2025/06/01 14:30 */
-function formatTime(ts){
-  if(!ts) return "还没复习过";
-  const d = new Date(ts);
-  const p = function(n){ return n < 10 ? "0" + n : "" + n; };
-  return d.getFullYear() + "/" + p(d.getMonth() + 1) + "/" + p(d.getDate()) + " " +
-         p(d.getHours()) + ":" + p(d.getMinutes());
-}
-
-/* 掌握程度 → 星星文字 */
-function starsText(level){
-  const n = Math.max(0, Math.min(3, level || 0));
-  return "⭐".repeat(n) + "☆".repeat(3 - n) + "（" + n + "/3）";
-}
-
-/* 错题排序：错误次数从多到少；次数相同，最近错的排前面 */
-function sortedWrong(){
-  return state.wrongBook.slice().sort(function(a, b){
-    if(b.count !== a.count) return b.count - a.count;
+/* 拼接战报文字：今日掌握词数 + 今日新增错题 + 今日学习时长 + 连续打卡 + 最该复习的前 3 题
+   【改动】"今日"的数字现在取自 state.daily（打卡日历那份记录），不再是累计总数 */
+function buildReportText(){
+  const data = readSavedState();
+  // 今天的打卡记录（没学过就是一条全 0 的记录，不会报错）
+  const day = (data.daily && data.daily[todayKey()]) || { seconds: 0, mastered: 0, wrongAdded: 0 };
+  const masteredToday   = day.mastered   || 0;                        // 今天新掌握的单词数
+  const wrongAddedToday = day.wrongAdded || 0;                        // 今天新加进错题本的条数
+  const minutesToday    = Math.floor((day.seconds || 0) / 60);        // 今天学习了多少分钟
+  const streakDays      = calcStreak(data.daily || {});               // 连续打卡天数
+  const wrongList = (data.wrongBook || []).slice();                   // 复制一份再排序，不动原数据
+  // 排序规则和错题本页面保持一致：错误次数从多到少；次数一样时，最近错的排前面
+  wrongList.sort(function(a, b){
+@@ -1650,19 +1722,26 @@
+    if(cb !== ca) return cb - ca;
     return (b.lastReview || 0) - (a.lastReview || 0);
   });
+  const top3 = wrongList.slice(0, 3);                          // 只取前 3 道
+  // 逐行拼接（用数组再 join，比一路 += 更好读也更好改）
+  const lines = [];
+  lines.push("🌟 姐姐，我今天的英语学习战报来啦！");
+  lines.push("✅ 今日已掌握单词：" + masteredToday + " 个");
+  lines.push("📕 错题本新增：" + wrongAddedToday + " 条");
+  lines.push("⏱ 今日学习时长：" + minutesToday + " 分钟");
+  lines.push("🔥 连续打卡：" + streakDays + " 天");
+  lines.push("🔍 最需要复习的题目：");
+  lines.push("");                                              // 空一行，和需求里的排版一致
+  if(top3.length === 0){
+    lines.push("（今天一条错题都没有，全对啦！🎉）");           // 空错题本也要能正常复制
+  }else{
+    top3.forEach(function(item, i){
+      // 一行一道题：序号 + 题目 + 错误次数
+@@ -1707,7 +1786,7 @@
+  return Promise.resolve(copyTextFallback(text));            // 老浏览器直接走兜底
 }
-
-/* 渲染错题列表 */
-function renderWrongBook(){
-  const list  = document.getElementById("wrongList");
-  const empty = document.getElementById("wrongEmpty");
-  const data  = sortedWrong();
-
-  list.innerHTML = "";
-  empty.classList.toggle("hidden", data.length > 0);
-
-  data.forEach(function(item){
-    const box = document.createElement("div");
-    box.className = "wrong-item";
-    box.innerHTML =
-      '<div class="wrong-head">' +
-        '<div class="q">' + escapeHtml(item.question) + '</div>' +
-        '<span class="badge badge-count">错 ' + item.count + ' 次</span>' +
-        '<span class="badge badge-type">'  + (item.type === "word" ? "单词" : "语法") + '</span>' +
-      '</div>' +
-      '<div class="wrong-detail">' +
-        '<p><span class="k">我选的答案：</span><span class="mine">' + escapeHtml(item.myAnswer || "—") + '</span></p>' +
-        '<p><span class="k">正确答案：</span><span class="right">' + escapeHtml(item.rightAnswer || "—") + '</span></p>' +
-        '<p><span class="k">解析：</span>' + escapeHtml(item.analysis || "—") + '</p>' +
-        '<p><span class="k">错误次数：</span>' + item.count + ' 次　' +
-           '<span class="k">掌握程度：</span><span class="stars">' + starsText(item.level) + '</span></p>' +
-        '<p><span class="k">最后复习时间：</span>' + formatTime(item.lastReview) + '</p>' +
-      '</div>';
-    // 点标题展开/收起详情
-    box.querySelector(".wrong-head").addEventListener("click", function(){
-      box.classList.toggle("open");
-      sfx("flip");
-    });
-    list.appendChild(box);
-  });
-}
-
-/* 防止特殊字符破坏 HTML 结构（例句里有引号等） */
-function escapeHtml(s){
-  return String(s == null ? "" : s)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-/* ---------------- 翻卡复习模式 ---------------- */
-let reviewQueue = [];    // 待复习的错题 id 列表
-let reviewPos   = 0;     // 当前第几张
-
-/* 开始复习：把错题按排序结果做成队列；已掌握(3⭐)的放最后 */
-function startReview(){
-  const data = sortedWrong();
-  if(!data.length){ alert("错题本是空的，没有需要复习的题哦 🎉"); return; }
-  const notMastered = data.filter(function(x){ return (x.level || 0) < 3; });
-  const mastered    = data.filter(function(x){ return (x.level || 0) >= 3; });
-  reviewQueue = notMastered.concat(mastered).map(function(x){ return x.id; });
-  reviewPos = 0;
-  document.getElementById("reviewArea").classList.remove("hidden");
-  showReviewCard();
-}
-document.getElementById("btnStartReview").addEventListener("click", function(){ sfx("click"); startReview(); });
-
-/* 退出复习 */
-document.getElementById("btnExitReview").addEventListener("click", function(){
-  document.getElementById("reviewArea").classList.add("hidden");
-  renderWrongBook();
-});
-
-/* 显示当前这张复习卡（正面朝前） */
-function showReviewCard(){
-  const card = document.getElementById("reviewCard");
-  card.classList.remove("flipped");        // 每张新卡都从正面开始
-  const item = state.wrongBook.find(function(x){ return x.id === reviewQueue[reviewPos]; });
-  if(!item){ endReview(); return; }
-  document.getElementById("reviewIdx").textContent   = reviewPos + 1;
-  document.getElementById("reviewTotal").textContent = reviewQueue.length;
-  document.getElementById("reviewQ").textContent     = item.question;
-  document.getElementById("reviewA").textContent     = item.rightAnswer;
-  document.getElementById("reviewAna").innerHTML =
-    "我选的：<span class='mine'>" + escapeHtml(item.myAnswer || "—") + "</span><br>" +
-    "解析：" + escapeHtml(item.analysis || "—") + "<br>" +
-    "错误次数：" + item.count + " 次 · 掌握程度：" + starsText(item.level);
-}
-
-/* 点卡片翻面 */
-document.getElementById("reviewCard").addEventListener("click", function(){
-  this.classList.toggle("flipped");
-  sfx("flip");
-});
-
-/* "我记住了"：掌握程度 +1（最高 3），更新复习时间 */
-document.getElementById("btnGotIt").addEventListener("click", function(){
-  const item = state.wrongBook.find(function(x){ return x.id === reviewQueue[reviewPos]; });
-  if(item){
-    item.level = Math.min(3, (item.level || 0) + 1);
-    item.lastReview = Date.now();
-    saveState();
-    if(item.level >= 3){
-      sfx("correct");
-      celebrate("这个词你掌握啦！", "掌握程度已升到 3⭐，真不错 🎊", 1300);
+/* 点「📊 生成今日战报」按钮时做的事 */
+function handleReportClick(){
+  const btn  = document.getElementById("btnReport");
+  const text = buildReportText();     // 1. 取出数据、拼好文字
+@@ -1721,7 +1800,7 @@
+      btn.textContent = "✅ 已复制";
+      setTimeout(function(){
+        btn.classList.remove("copied");
+        btn.textContent = "📊 生成今日战报";
+      }, 1800);
     }else{
-      sfx("correct");
-    }
-  }
-  nextReviewCard();
-});
-
-/* "还不熟"：错误次数 +1，掌握程度不变，更新复习时间 */
-document.getElementById("btnNotYet").addEventListener("click", function(){
-  const item = state.wrongBook.find(function(x){ return x.id === reviewQueue[reviewPos]; });
-  if(item){
-    item.count += 1;
-    item.lastReview = Date.now();
+      // 极少数浏览器两种方案都失败：把文字弹出来，让她长按手动复制，绝不丢数据
+@@ -1745,7 +1824,7 @@
+const FOCUS_GOAL      = 15 * 60;   // 每天目标 15 分钟（900 秒）
+const CHECKIN_MIN_SEC = 60;        // 当天累计满 60 秒就算打卡（有学习）
+const DAILY_KEEP_DAYS = 180;       // 只保留最近 180 天的每日记录，存档不会越滚越大
+let focusTickId   = null;          // 计时器句柄（setInterval）
+let saveTickCount = 0;             // 计数用：每 5 秒才写一次 localStorage
+@@ -1833,7 +1912,7 @@
     saveState();
-    sfx("wrong");
-  }
-  nextReviewCard();
-});
-
-/* 下一张卡 */
-function nextReviewCard(){
-  reviewPos += 1;
-  if(reviewPos >= reviewQueue.length){ endReview(); return; }
-  showReviewCard();
-}
-
-/* 复习结束 */
-function endReview(){
-  document.getElementById("reviewArea").classList.add("hidden");
-  refreshStats();
-  renderWrongBook();
-  celebrate("复习完成！", "这一轮错题都过了一遍，休息一下吧 🌈", 1800);
-}
-
-/* 清空错题本（要确认，防止误点） */
-document.getElementById("btnClearWrong").addEventListener("click", function(){
-  if(!state.wrongBook.length){ alert("错题本本来就是空的呀 😄"); return; }
-  if(confirm("确定要清空所有错题吗？清空后不能恢复哦。")){
-    state.wrongBook = [];
-    saveState();
-    refreshStats();
-    renderWrongBook();
-    document.getElementById("reviewArea").classList.add("hidden");
-  }
-});
-
-/* =====================================================================================
-   第七部分：单词闯关
-   ===================================================================================== */
-const WORD_PER_LEVEL = 5;                                  // 每关 5 个单词
-const WORD_LEVELS    = Math.ceil(WORDS.length / WORD_PER_LEVEL);   // 一共 10 关
-let wordFlipped = false;                                   // 当前卡片是否已翻面
-
-/* 取出当前这一关的 5 个单词 */
-function currentLevelWords(){
-  const start = state.wordLevel * WORD_PER_LEVEL;
-  return WORDS.slice(start, start + WORD_PER_LEVEL);
-}
-
-/* 渲染单词卡当前状态 */
-function renderWord(){
-  const card  = document.getElementById("wordCard");
-  const bar   = document.getElementById("wordBar");
-
-  // 全部通关的情况
-  if(state.wordLevel >= WORD_LEVELS){
-    document.getElementById("wordLevelTag").textContent = "全部通关 🎊";
-    document.getElementById("wordProgressText").textContent = WORDS.length + " / " + WORDS.length;
-    bar.style.width = "100%";
-    document.getElementById("wordEn").textContent = "ALL DONE!";
-    document.getElementById("wordZh").textContent = "50 个单词全部闯关完成！";
-    document.getElementById("wordEx").textContent = "You finished every level. Well done!";
-    document.getElementById("wordExZh").textContent = "你完成了所有关卡，太棒了！";
-    document.getElementById("btnKnown").textContent = "🔄 重新挑战";
-    document.getElementById("btnKnown").disabled = false;
-    document.getElementById("btnUnknown").disabled = true;
-    document.getElementById("wordHintText").textContent = "点「重新挑战」从第 1 关再来一遍（已掌握的单词会保留）";
+    updateTimerUI();
+    renderCalendar();
+    celebrate("15 分钟达成！", "今日目标完成 ✅ 记得点「📊 生成今日战报」报喜哦", 2400);
     return;
   }
-
-  const words = currentLevelWords();
-  const w = words[state.wordPos];
-  if(!w){ return; }                       // 安全兜底
-
-  // 关卡标签 + 进度条
-  document.getElementById("wordLevelTag").textContent = "第 " + (state.wordLevel + 1) + " 关 · 第 " + (state.wordPos + 1) + "/" + WORD_PER_LEVEL + " 个词";
-  const done = state.wordLevel * WORD_PER_LEVEL + state.wordPos;
-  document.getElementById("wordProgressText").textContent = done + " / " + WORDS.length;
-  bar.style.width = (done / WORDS.length * 100) + "%";
-
-  // 卡片内容 & 翻回正面
-  card.classList.remove("flipped");
-  wordFlipped = false;
-  document.getElementById("wordEn").textContent   = w.w;
-  document.getElementById("wordZh").textContent   = w.z;
-  document.getElementById("wordEx").textContent   = w.e;
-  document.getElementById("wordExZh").textContent = w.ez;
-
-  // 已掌握徽章
-  const badge = document.getElementById("wordBadge");
-  badge.classList.toggle("hidden", state.masteredWords.indexOf(w.w) === -1);
-
-  // 按钮恢复可用
-  document.getElementById("btnKnown").textContent   = "我记住了 ✓";
-  document.getElementById("btnKnown").disabled      = false;
-  document.getElementById("btnUnknown").disabled    = false;
-  document.getElementById("wordHintText").textContent = "（翻面之后再选择，不要偷看答案哦 😜）";
-
-  // 自动朗读这个单词（安静环境下可以点右上角静音，但朗读只有点喇叭才出声，避免打扰）
+@@ -1866,7 +1945,7 @@
+  if(done)          sub = "今日 15 分钟目标已完成 ✅";
+  else if(running)  sub = "专注中… 已学 " + Math.floor(used / 60) + " 分钟";
+  else if(used > 0) sub = "已暂停，点「继续」接着算";
+  else              sub = "点「开始」进入 15 分钟专注";
+  document.getElementById("timerSub").textContent = sub;
+  // 按钮文字跟着状态走
+@@ -1909,15 +1988,13 @@
+  return !!map[key] && (map[key].seconds || 0) >= CHECKIN_MIN_SEC;
 }
-
-/* 点卡片翻面 */
-document.getElementById("wordCard").addEventListener("click", function(){
-  if(state.wordLevel >= WORD_LEVELS) return;
-  this.classList.toggle("flipped");
-  wordFlipped = this.classList.contains("flipped");
-  sfx("flip");
-});
-
-/* 点喇叭朗读（阻止冒泡，避免顺带把卡片翻面） */
-document.getElementById("wordSpeaker").addEventListener("click", function(e){
-  e.stopPropagation();
-  const words = currentLevelWords();
-  const w = words[state.wordPos];
-  if(w) speak(w.w);
-});
-
-/* "我记住了"
-   —— 全部通关状态下这个按钮变成"重新挑战" */
-document.getElementById("btnKnown").addEventListener("click", function(){
-  // 情况 A：全部通关 → 重新挑战
-  if(state.wordLevel >= WORD_LEVELS){
-    state.wordLevel = 0;
-    state.wordPos = 0;
-    saveState();
-    renderWord();
-    return;
+/* 连续打卡天数：今天还没学就从昨天开始数，早上刚打开也不会显示 0 */
+function calcStreak(daily){
+  const d = new Date();
+  if(!isCheckedIn(dateKey(d), daily)) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while(isCheckedIn(dateKey(d), daily)){
+    n++;
+    d.setDate(d.getDate() - 1);
   }
-  // 情况 B：正常答对
+  return n;
+}
+@@ -1962,12 +2039,12 @@
+  }
+  grid.innerHTML = html;
+  // 本月打卡天数 + 连续打卡
+  let monthDays = 0;
+  for(let d = 1; d <= daysInMonth; d++){
+    if(isCheckedIn(dateKey(new Date(y, m, d)))) monthDays++;
+  }
+  document.getElementById("calStreak").textContent    = calcStreak();
+  document.getElementById("calMonthDays").textContent = monthDays;
+}
+@@ -2036,7 +2113,7 @@
+    '</div>' +
+    '<h2>一、题目（先自己写出答案，再翻到下一页对答案）</h2>' + questions +
+    '<h2 class="print-pagebreak">二、答案与解析</h2>' + answers +
+    '<div class="print-meta" style="margin-top:16pt;">每天 15 分钟，坚持 21 天就能看出变化 🌱</div>';
+}
+/* 点「🖨 导出打印版」 */
+@@ -2084,6 +2161,122 @@
+  }
+});
+window.addEventListener("beforeunload", function(){ saveState(); });
+</script>
+</body>
+</html>
+@@ -17,12 +17,13 @@
+              "开始复习"进入翻卡模式：正面题目，翻面答案+解析，
+              "我记住了"让掌握度 +1，"还不熟"让错误次数 +1。
+  ④ 听歌学英语：3 首英文歌的歌词 + 中文翻译（点歌名展开）。
+  ⑤ 打卡日历　：单次专注 15 分钟倒计时（圆环 + 剩余时间），自动累计专注时长；
+              日历上标出哪天有学习、哪天满 15 分钟，还能看累计打卡天数和本月打卡天数。
+  ⑥ 周末战报　：顶部一键生成战报（本周末掌握词数 / 本周末新增错题 / 专注时长 /
+              累计打卡 / 最该复习的前 3 题），自动复制到剪贴板，直接粘微信发给姐姐。
+  ⑦ 错题打印　：错题本里「🖨 导出打印版」，生成「题目页 + 答案解析页」的复习卷，
+              调浏览器打印就能拿到纸质的。
+  ⑧ 存档备份　：页面最底部「📤 导出存档 / 📥 导入存档」，换设备也不丢进度。
+  【技术说明】
+  · 纯原生 HTML + CSS + JavaScript，零框架、零依赖、零外部文件；
+@@ -119,7 +120,7 @@
+}
+.icon-btn:hover{ transform: scale(1.1) rotate(-6deg); }
+/* 【新增】顶部「生成周末战报」按钮（独立样式，不影响上面已有的 .icon-btn / .stat-pill） */
+.stat-btn{
+  border: none; cursor: pointer; font-family: inherit;
+  font-size: 15px; font-weight: bold; color: #6b5320;
+@@ -222,6 +223,28 @@
+}
+/* ============================================================
+   【新增】存档导出 / 导入弹窗
+   ============================================================ */
+.modal-mask{
+  position: fixed; inset: 0; z-index: 96; padding: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,240,246,.72); backdrop-filter: blur(3px);
+}
+.modal-box{
+  background: #fff; border-radius: 26px; padding: 18px;
+  width: min(560px, 100%); max-height: 86vh; overflow: auto;
+  border: 4px solid var(--pink-soft); box-shadow: 0 16px 36px rgba(255,143,171,.35);
+  animation: pop .35s cubic-bezier(.2,1.4,.4,1);
+}
+.modal-title{ font-size: 19px; font-weight: bold; color: #ff6f91; text-align: center; margin-bottom: 4px; }
+#dataText{
+  width: 100%; height: 200px; margin-top: 10px; padding: 12px; box-sizing: border-box;
+  font-family: Consolas, "Courier New", monospace; font-size: 12.5px; line-height: 1.5;
+  color: var(--ink); background: #fffdf8; border: 2px solid var(--yellow-soft);
+  border-radius: 14px; resize: vertical;
+}
+/* ============================================================
+   3) 导航（标签页）
+   ============================================================ */
+nav.tabs{
+@@ -498,12 +521,12 @@
+  <!-- ============ 顶部标题 + 数据条 ============ -->
+  <header>
+    <h1>🌸 英语学习小站 🌸</h1>
+    <div class="sub">单次专注 15 分钟 · 不用死记硬背，用逻辑记单词 ✨</div>
+    <div class="stat-bar">
+      <div class="stat-pill">已掌握单词 <b id="statMastered">0</b>/50</div>
+      <div class="stat-pill">错题本 <b id="statWrong">0</b> 条</div>
+      <!-- 【新增】一键生成本周末学习战报并复制到剪贴板 -->
+      <button class="stat-btn" id="btnReport" title="生成本周末学习战报并复制">📊 生成周末战报</button>
+      <button class="icon-btn" id="btnMute" title="开关音效">🔊</button>
+    </div>
+  </header>
+@@ -651,7 +674,7 @@
+        <!-- 圆环 + 剩余时间：--p 由 JS 控制，表示今日 15 分钟的完成百分比 -->
+        <div class="timer-ring" id="timerRing">
+          <div class="timer-time" id="timerText">15:00</div>
+          <div class="timer-sub" id="timerSub">每次专注 15 分钟，帮大脑热热身</div>
+        </div>
+        <div class="progress-wrap" style="margin-top:6px;">
+@@ -672,7 +695,7 @@
+          <button class="cal-nav" id="btnCalNext" title="下一月">›</button>
+        </div>
+        <div class="cal-summary">
+          <span>📅 累计打卡 <b id="calTotalDays">0</b> 天</span>
+          <span>📅 本月打卡 <b id="calMonthDays">0</b> 天</span>
+        </div>
+        <div class="cal-weekdays">
+@@ -691,8 +714,27 @@
+  <div class="hint" style="text-align:center;margin-top:10px;">
+    进度自动保存在这台设备上 · 换设备或清理浏览器数据会重置哦 🌱
+  </div>
+  <!-- 【新增】换设备不丢进度：导出 / 导入存档（页面最底部，任何标签页都能点） -->
+  <div class="btn-row" style="margin-top:10px;">
+    <button class="btn btn-ghost" id="btnExportData">📤 导出存档</button>
+    <button class="btn btn-ghost" id="btnImportData">📥 导入存档</button>
+  </div>
+</div>
+<!-- 【新增】存档导出 / 导入弹窗：平常隐藏，点底部按钮才出现 -->
+<div class="modal-mask hidden" id="dataModal">
+  <div class="modal-box">
+    <div class="modal-title" id="dataModalTitle">📤 导出存档</div>
+    <div class="hint" id="dataModalTip"></div>
+    <textarea id="dataText" spellcheck="false" placeholder="在这里粘贴存档文字…"></textarea>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-mint" id="btnDataOk">📋 复制存档</button>
+      <button class="btn btn-ghost" id="btnDataClose">关闭</button>
+    </div>
+  </div>
+</div>
+<!-- 【新增】打印专用容器：屏幕上始终隐藏（.print-sheet），只有打印时才会显示 -->
+<div class="print-sheet" id="printSheet"></div>
+@@ -1348,7 +1390,7 @@
   const words = currentLevelWords();
   const w = words[state.wordPos];
   if(!w) return;
-  if(state.masteredWords.indexOf(w.w) === -1) state.masteredWords.push(w.w);   // 标记已掌握
-  saveState();
-  refreshStats();
-  sfx("correct");
-  // 如果这个词之前在错题本里，答对后掌握度 +1
-  const rec = state.wrongBook.find(function(x){ return x.id === "w_" + w.w; });
-  if(rec){
-    rec.level = Math.min(3, (rec.level || 0) + 1);
-    rec.lastReview = Date.now();
-    saveState();
-  }
-  nextWord();
+  // 【新增】只有"第一次掌握"才计数，重复点不会重复计数（战报按天汇总时用到）
+  if(state.masteredWords.indexOf(w.w) === -1){
+    state.masteredWords.push(w.w);   // 标记已掌握
+    recordDaily("mastered");         // 今日已掌握 +1（战报和日历都用这个数）
+@@ -1613,7 +1655,7 @@
 });
-
-/* "还不熟" —— 自动进错题本 */
-document.getElementById("btnUnknown").addEventListener("click", function(){
-  const words = currentLevelWords();
-  const w = words[state.wordPos];
-  if(!w) return;
-  sfx("wrong");
-  addWrong({
-    id: "w_" + w.w,
-    type: "word",
-    question: "单词：" + w.w,
-    myAnswer: "我选了「还不熟」",
-    rightAnswer: w.z,
-    analysis: "例句：" + w.e + "（" + w.ez + "）　记忆小技巧：把这个词和历史/数学里的场景连起来想，比干背更容易记住。"
-  });
-  nextWord();
-});
-
-/* 下一个单词；满 5 个就过关 */
-function nextWord(){
-  state.wordPos += 1;
-  if(state.wordPos >= WORD_PER_LEVEL){
-    // 本关结束 → 通关动画 → 自动进入下一关
-    state.wordLevel += 1;
-    state.wordPos = 0;
-    saveState();
-    renderWord();
-    if(state.wordLevel >= WORD_LEVELS){
-      celebrate("全部通关！", "50 个单词都被你攻下啦，你就是单词之王 👑", 2600);
-    }else{
-      celebrate("你真棒！第 " + state.wordLevel + " 关通过 🎉", "即将进入第 " + (state.wordLevel + 1) + " 关，加油！", 2200);
-    }
-  }else{
-    saveState();
-    renderWord();
-  }
-}
-
 /* =====================================================================================
-   第八部分：语法闯关
+   第十一部分【新增】：生成周末学习战报 → 复制到剪贴板 → 提醒去微信粘贴
    ===================================================================================== */
-const G_PER_LEVEL = 5;                                        // 每关 5 题
-const G_LEVELS    = Math.ceil(GRAMMAR.length / G_PER_LEVEL);   // 一共 2 关
-let gAnswered = false;                                        // 当前题是否已作答
-let gChoice   = -1;                                           // 当前选的下标
-
-/* 当前关的 5 道题 */
-function currentGQuestions(){
-  const start = state.grammarLevel * G_PER_LEVEL;
-  return GRAMMAR.slice(start, start + G_PER_LEVEL);
+/* 直接读 localStorage 里的存档（而不是内存里的 state）：
+@@ -1630,19 +1672,49 @@
+  return state;
 }
-
-/* 渲染语法题 */
-function renderGrammar(){
-  const qBox   = document.getElementById("gQuestion");
-  const optBox = document.getElementById("gOptions");
-  const ana    = document.getElementById("gAnalysis");
-  const nextBtn= document.getElementById("btnNextG");
-  const bar    = document.getElementById("gBar");
-
-  // 全部做完
-  if(state.grammarLevel >= G_LEVELS){
-    document.getElementById("gLevelTag").textContent = "全部通关 🎊";
-    document.getElementById("gProgressText").textContent = GRAMMAR.length + " / " + GRAMMAR.length;
-    bar.style.width = "100%";
-    qBox.textContent = "10 道语法题全部完成！你已经把规则背后的逻辑理顺了 🧠✨";
-    optBox.innerHTML = "";
-    ana.classList.add("hidden");
-    nextBtn.textContent = "🔄 重新挑战";
-    nextBtn.classList.remove("hidden");
+/* ---------- 周末统计：最近一个周五 00:00 → 现在 ---------- */
+/* 因为妹妹只有周五晚上到周日下午能用手机，战报改成按"周末"统计：
+   · 周五 = 0 天前、周六 = 1 天前、周日 = 2 天前、周一 = 3 天前 … 周四 = 6 天前
+   · 到了下周五 00:00 自动进入新的一周，战报从 0 重新算 */
+function weekendStart(from){
+  const now  = from || new Date();
+  const d    = new Date(now.getFullYear(), now.getMonth(), now.getDate());  // 今天 00:00
+  const back = (d.getDay() - 5 + 7) % 7;     // getDay(): 周日=0 … 周五=5 … 周六=6
+  d.setDate(d.getDate() - back);
+  return d;
+}
+/* 汇总"最近周五 00:00 → 现在"的打卡数据 */
+function weekendAggregate(daily, from){
+  const ref      = from || new Date();
+  const startKey = dateKey(weekendStart(ref));
+  const endKey   = dateKey(ref);
+  const map      = daily || {};
+  let seconds = 0, mastered = 0, wrongAdded = 0, studyDays = 0;
+  Object.keys(map).forEach(function(k){
+    // "2026-11-13" 这种格式的字符串可以直接比大小，等于按日期筛选
+    if(k < startKey || k > endKey) return;
+    const r = map[k] || {};
+    seconds    += r.seconds    || 0;
+    mastered   += r.mastered   || 0;
+    wrongAdded += r.wrongAdded || 0;
+    if((r.seconds || 0) >= CHECKIN_MIN_SEC) studyDays++;
+  });
+  return { startKey: startKey, endKey: endKey, seconds: seconds,
+           mastered: mastered, wrongAdded: wrongAdded, studyDays: studyDays };
+}
+/* 拼接战报文字：本周末掌握词数 + 本周末新增错题 + 本周末专注时长 + 累计打卡 + 最该复习的前 3 题
+   【改动】统计范围是"最近一个周五 00:00 → 现在"，不再只看今天 */
+function buildReportText(refDate){
+  const data = readSavedState();
+  const wk   = weekendAggregate(data.daily, refDate);   // 本周末汇总
+  const minutesText = Math.floor(wk.seconds / 60);      // 专注了多少分钟
+  const totalDays   = totalCheckinDays(data.daily);     // 累计打卡天数（有史以来）
+  const wrongList = (data.wrongBook || []).slice();     // 复制一份再排序，不动原数据
+  // 排序规则和错题本页面保持一致：错误次数从多到少；次数一样时，最近错的排前面
+  wrongList.sort(function(a, b){
+@@ -1650,19 +1722,26 @@
+    if(cb !== ca) return cb - ca;
+    return (b.lastReview || 0) - (a.lastReview || 0);
+  });
+  const top3 = wrongList.slice(0, 3);                   // 只取前 3 道
+  // "2026-11-13" → "11/13"
+  const mmdd = function(k){ return k.slice(5).replace("-", "/"); };
+  const rangeText = (wk.startKey === wk.endKey)
+    ? mmdd(wk.startKey) + "（周五）"
+    : mmdd(wk.startKey) + "（周五）— " + mmdd(wk.endKey);
+  // 逐行拼接（用数组再 join，比一路 += 更好读也更好改）
+  const lines = [];
+  lines.push("🌟 姐姐，我这周末的英语学习战报来啦！");
+  lines.push("🗓 统计范围：" + rangeText + "，其中 " + wk.studyDays + " 天有学习");
+  lines.push("✅ 本周末掌握单词：" + wk.mastered + " 个");
+  lines.push("📕 本周末新增错题：" + wk.wrongAdded + " 条");
+  lines.push("⏱ 本周末专注时长：" + minutesText + " 分钟");
+  lines.push("📅 累计打卡：" + totalDays + " 天");
+  lines.push("🔍 最需要复习的题目：");
+  lines.push("");                                       // 空一行，和需求里的排版一致
+  if(top3.length === 0){
+    lines.push("（错题本还是空的，全对啦！🎉）");          // 空错题本也要能正常复制
+  }else{
+    top3.forEach(function(item, i){
+      // 一行一道题：序号 + 题目 + 错误次数
+@@ -1707,7 +1786,7 @@
+  return Promise.resolve(copyTextFallback(text));            // 老浏览器直接走兜底
+}
+/* 点「📊 生成周末战报」按钮时做的事 */
+function handleReportClick(){
+  const btn  = document.getElementById("btnReport");
+  const text = buildReportText();     // 1. 取出数据、拼好文字
+@@ -1721,7 +1800,7 @@
+      btn.textContent = "✅ 已复制";
+      setTimeout(function(){
+        btn.classList.remove("copied");
+        btn.textContent = "📊 生成周末战报";
+      }, 1800);
+    }else{
+      // 极少数浏览器两种方案都失败：把文字弹出来，让她长按手动复制，绝不丢数据
+@@ -1745,7 +1824,7 @@
+const FOCUS_GOAL      = 15 * 60;   // 每天目标 15 分钟（900 秒）
+const CHECKIN_MIN_SEC = 60;        // 当天累计满 60 秒就算打卡（有学习）
+const DAILY_KEEP_DAYS = 1000;      // 保留最近 1000 天（约 3 年）的每日记录，"累计打卡"才不会越用越少
+let focusTickId   = null;          // 计时器句柄（setInterval）
+let saveTickCount = 0;             // 计数用：每 5 秒才写一次 localStorage
+@@ -1833,7 +1912,7 @@
+    saveState();
+    updateTimerUI();
+    renderCalendar();
+    celebrate("15 分钟达成！", "这次专注完成 ✅ 记得点「📊 生成周末战报」报喜哦", 2400);
     return;
   }
-
-  const list = currentGQuestions();
-  const item = list[state.grammarPos];
-  if(!item) return;
-
-  gAnswered = false;
-  gChoice = -1;
-
-  document.getElementById("gLevelTag").textContent = "第 " + (state.grammarLevel + 1) + " 关 · 第 " + (state.grammarPos + 1) + "/" + G_PER_LEVEL + " 题";
-  const done = state.grammarLevel * G_PER_LEVEL + state.grammarPos;
-  document.getElementById("gProgressText").textContent = done + " / " + GRAMMAR.length;
-  bar.style.width = (done / GRAMMAR.length * 100) + "%";
-
-  qBox.textContent = item.q;
-  ana.classList.add("hidden");
-  ana.innerHTML = "";
-  nextBtn.classList.add("hidden");
-  nextBtn.textContent = "下一题 →";
-
-  // 渲染三个选项
-  optBox.innerHTML = "";
-  item.opts.forEach(function(text, idx){
-    const b = document.createElement("button");
-    b.className = "opt";
-    b.textContent = String.fromCharCode(65 + idx) + ". " + text;   // A. / B. / C.
-    b.addEventListener("click", function(){ answerGrammar(idx); });
-    optBox.appendChild(b);
-  });
+@@ -1866,7 +1945,7 @@
+  if(done)          sub = "今日 15 分钟目标已完成 ✅";
+  else if(running)  sub = "专注中… 已学 " + Math.floor(used / 60) + " 分钟";
+  else if(used > 0) sub = "已暂停，点「继续」接着算";
+  else              sub = "每次专注 15 分钟，帮大脑热热身";
+  document.getElementById("timerSub").textContent = sub;
+  // 按钮文字跟着状态走
+@@ -1909,15 +1988,13 @@
+  return !!map[key] && (map[key].seconds || 0) >= CHECKIN_MIN_SEC;
 }
-
-/* 选择答案 */
-function answerGrammar(idx){
-  if(gAnswered) return;                       // 已答过就别重复点
-  const list = currentGQuestions();
-  const item = list[state.grammarPos];
-  if(!item) return;
-
-  gAnswered = true;
-  gChoice = idx;
-  const btns = document.querySelectorAll("#gOptions .opt");
-  btns.forEach(function(b, i){
-    b.disabled = true;
-    if(i === item.ans) b.classList.add("correct");            // 标出正确答案
-    if(i === idx && idx !== item.ans) b.classList.add("wrong"); // 标出选错的那个
+/* 累计打卡天数：所有"当天专注 ≥ 1 分钟"的日子加起来（不再看连续不断，周末型更合适） */
+function totalCheckinDays(daily){
+  const map = daily || state.daily || {};
+  let n = 0;
+  Object.keys(map).forEach(function(k){
+    if((map[k].seconds || 0) >= CHECKIN_MIN_SEC) n++;
   });
-
-  const ana = document.getElementById("gAnalysis");
-  const right = String.fromCharCode(65 + item.ans) + ". " + item.opts[item.ans];
-
-  if(idx === item.ans){
-    // 答对：音效 + 解析，答对的题不进错题本
-    sfx("correct");
-    ana.innerHTML = "<b>✅ 答对啦！</b><br>" + escapeHtml(item.ana);
-  }else{
-    // 答错：进错题本
-    sfx("wrong");
-    ana.innerHTML = "<b>❌ 再想想～</b> 正确答案是 <span class='right'>" + escapeHtml(right) + "</span><br>" + escapeHtml(item.ana);
-    addWrong({
-      id: "g_" + (state.grammarLevel * G_PER_LEVEL + state.grammarPos),
-      type: "grammar",
-      question: item.q,
-      myAnswer: String.fromCharCode(65 + idx) + ". " + item.opts[idx],
-      rightAnswer: right,
-      analysis: item.ana
-    });
+  return n;
+}
+@@ -1962,12 +2039,12 @@
   }
-  ana.classList.remove("hidden");
-  document.getElementById("btnNextG").classList.remove("hidden");
+  grid.innerHTML = html;
+  // 本月打卡天数 + 累计打卡天数
+  let monthDays = 0;
+  for(let d = 1; d <= daysInMonth; d++){
+    if(isCheckedIn(dateKey(new Date(y, m, d)))) monthDays++;
+  }
+  document.getElementById("calTotalDays").textContent = totalCheckinDays();
+  document.getElementById("calMonthDays").textContent = monthDays;
 }
-
-/* 下一题 */
-document.getElementById("btnNextG").addEventListener("click", function(){
-  sfx("click");
-  // 全部通关状态下 → 重新挑战
-  if(state.grammarLevel >= G_LEVELS){
-    state.grammarLevel = 0;
-    state.grammarPos = 0;
-    saveState();
-    renderGrammar();
+@@ -2036,7 +2113,7 @@
+    '</div>' +
+    '<h2>一、题目（先自己写出答案，再翻到下一页对答案）</h2>' + questions +
+    '<h2 class="print-pagebreak">二、答案与解析</h2>' + answers +
+    '<div class="print-meta" style="margin-top:16pt;">单次专注 15 分钟，坚持 21 天就能看出变化 🌱</div>';
+}
+/* 点「🖨 导出打印版」 */
+@@ -2084,6 +2161,122 @@
+  }
+});
+window.addEventListener("beforeunload", function(){ saveState(); });
+/* =====================================================================================
+   第十三部分【新增】：存档导出 / 导入（换设备不丢进度）
+   -------------------------------------------------------------------------------------
+   · 导出：把当前 localStorage 里的存档转成一段 JSON 文字，显示在弹窗里，可一键复制；
+   · 导入：把这段文字粘回来，校验格式后覆盖当前存档，并立刻刷新整站；
+   · 导出的是"本页面的存档"（键名 STORE_KEY），不是浏览器里所有网站的数据。
+   ===================================================================================== */
+/* 生成导出文字：优先用已保存的存档；一次都没保存过就导出内存里的当前状态 */
+function buildExportText(){
+  const raw = localStorage.getItem(STORE_KEY);
+  let obj = state;
+  if(raw){
+    try{ obj = JSON.parse(raw); }catch(e){ obj = state; }
+  }
+  return JSON.stringify(obj, null, 2);   // 缩进 2 格，好看也好读
+}
+/* 导入文字：校验 → 写存档 → 重新渲染整站
+   返回 { ok:true, mastered, wrong } 或 { ok:false, reason } */
+function importFromText(text){
+  let obj;
+  try{
+    obj = JSON.parse(text);
+  }catch(e){
+    return { ok: false, reason: "这段文字不是合法的 JSON（可能复制时漏了头尾）" };
+  }
+  if(!obj || typeof obj !== "object" || Array.isArray(obj)){
+    return { ok: false, reason: "存档内容格式不对" };
+  }
+  // 至少得认识一个本页面的字段，免得把别的东西导进来
+  const known = ["masteredWords", "wrongBook", "wordLevel", "grammarLevel", "daily", "mute"];
+  if(!known.some(function(k){ return k in obj; })){
+    return { ok: false, reason: "这段文字不像是本页面的存档" };
+  }
+  if("masteredWords" in obj && !Array.isArray(obj.masteredWords)) return { ok: false, reason: "「已掌握单词」字段格式不对" };
+  if("wrongBook"     in obj && !Array.isArray(obj.wrongBook))     return { ok: false, reason: "「错题本」字段格式不对" };
+  if("daily"         in obj && (typeof obj.daily !== "object" || Array.isArray(obj.daily))) return { ok: false, reason: "「打卡记录」字段格式不对" };
+  localStorage.setItem(STORE_KEY, JSON.stringify(obj));           // 1. 覆盖存档
+  state = Object.assign(defaultState(), obj);                     // 2. 换掉内存里的状态
+  state.focus = { running: false, lastTick: 0 };                  //   导入后计时器先停着，避免乱算
+  saveState();                                                    // 3. 补全缺省字段后再存一次
+  refreshStats();      // 4. 整站重新渲染
+  renderWord();
+  renderGrammar();
+  renderWrongBook();
+  renderSongs();
+  renderCheckin();
+  return { ok: true, mastered: (state.masteredWords || []).length, wrong: (state.wrongBook || []).length };
+}
+/* ---------- 弹窗交互 ---------- */
+let dataModalMode = "export";   // 当前弹窗是导出还是导入
+function openDataModal(mode){
+  dataModalMode = mode;
+  const ta    = document.getElementById("dataText");
+  const title = document.getElementById("dataModalTitle");
+  const tip   = document.getElementById("dataModalTip");
+  const okBtn = document.getElementById("btnDataOk");
+  if(mode === "export"){
+    title.textContent = "📤 导出存档";
+    tip.textContent   = "下面是这台设备上的全部进度。点「复制存档」，发到微信收藏 / 备忘录里，换设备时再导入就行。";
+    ta.value     = buildExportText();
+    ta.readOnly  = true;                       // 导出时只读，防止手滑改坏
+    okBtn.textContent = "📋 复制存档";
+    // 打开就全选，方便手动复制
+    setTimeout(function(){ ta.focus(); ta.select(); }, 50);
+  }else{
+    title.textContent = "📥 导入存档";
+    tip.textContent   = "把之前导出的存档文字粘到下面，点「覆盖导入」就能恢复进度（会覆盖这台设备现有的进度）。";
+    ta.value     = "";
+    ta.readOnly  = false;
+    okBtn.textContent = "✅ 覆盖导入";
+  }
+  document.getElementById("dataModal").classList.remove("hidden");
+}
+function closeDataModal(){
+  document.getElementById("dataModal").classList.add("hidden");
+}
+/* 弹窗里那个大按钮：导出=复制，导入=覆盖 */
+function handleDataOk(){
+  const ta = document.getElementById("dataText");
+  if(dataModalMode === "export"){
+    copyText(ta.value).then(function(ok){
+      if(ok) alert("存档已复制！发到微信收藏或备忘录里，换设备也能找回来 📤");
+      else   prompt("没能自动复制，长按下面的文字手动复制吧 👇", ta.value);
+    });
     return;
   }
-  state.grammarPos += 1;
-  if(state.grammarPos >= G_PER_LEVEL){
-    state.grammarLevel += 1;
-    state.grammarPos = 0;
-    saveState();
-    renderGrammar();
-    if(state.grammarLevel >= G_LEVELS){
-      celebrate("语法全通关！", "逻辑好用的人，语法就是小菜一碟 🧠🎉", 2600);
-    }else{
-      celebrate("第 " + state.grammarLevel + " 关通过 🎉", "进入第 " + (state.grammarLevel + 1) + " 关！", 2200);
-    }
-  }else{
-    saveState();
-    renderGrammar();
-  }
-});
-
-/* =====================================================================================
-   第九部分：听歌学英语（只展示歌词，不需要真的播放音乐）
-   ===================================================================================== */
-function renderSongs(){
-  const box = document.getElementById("songList");
-  box.innerHTML = "";
-  SONGS.forEach(function(song, i){
-    const div = document.createElement("div");
-    div.className = "song";
-    // 歌名行
-    let html =
-      '<div class="song-head">' +
-        '<div class="cover">' + song.emoji + '</div>' +
-        '<div class="title"><b>' + escapeHtml(song.title) + '</b><span>' + escapeHtml(song.artist) + '</span></div>' +
-        '<div class="arrow">▶</div>' +
-      '</div>' +
-      '<div class="lyrics">';
-    // 歌词逐行：英文一行、中文一行
-    song.lines.forEach(function(line){
-      html += '<div class="lyric-row">' +
-                '<div class="en">' + escapeHtml(line.en) + '</div>' +
-                '<div class="zh">' + escapeHtml(line.zh) + '</div>' +
-              '</div>';
-    });
-    html += '</div>';
-    div.innerHTML = html;
-
-    // 点歌名展开/收起歌词
-    div.querySelector(".song-head").addEventListener("click", function(){
-      div.classList.toggle("open");
-      sfx("flip");
-    });
-    box.appendChild(div);
-  });
+  if(!ta.value.trim()){ alert("先把存档文字粘进来哦 📥"); return; }
+  if(!confirm("导入会覆盖这台设备上现有的进度，确定要覆盖吗？")) return;
+  const r = importFromText(ta.value);
+  if(!r.ok){ alert("导入失败：" + r.reason); return; }
+  closeDataModal();
+  alert("导入成功！已恢复 " + r.mastered + " 个已掌握单词、" + r.wrong + " 条错题 🎉");
 }
-
-/* =====================================================================================
-   第十部分：启动 —— 读数据、渲染页面、绑定键盘快捷键
-   ===================================================================================== */
-loadState();          // 1. 读取本地进度
-refreshStats();       // 2. 刷新顶部统计
-renderWord();         // 3. 渲染单词闯关
-renderGrammar();      // 4. 渲染语法闯关
-renderWrongBook();    // 5. 渲染错题本
-renderSongs();        // 6. 渲染歌单
-
-/* 键盘快捷键（电脑上刷题更快）：
-   空格 = 翻卡 / 下一题；1 = 我记住了；2 = 还不熟 / 下一题 */
-document.addEventListener("keydown", function(e){
-  const wordPage = document.getElementById("page-word").classList.contains("active");
-  const gPage    = document.getElementById("page-grammar").classList.contains("active");
-  // 如果焦点正在某个按钮上，空格就交给浏览器去「点按钮」，避免一次按键触发两件事
-  if(e.code === "Space" && e.target && e.target.tagName === "BUTTON") return;
-  if(e.code === "Space"){
-    if(wordPage){ e.preventDefault(); document.getElementById("wordCard").click(); }
-    else if(gPage){
-      e.preventDefault();
-      const nextBtn = document.getElementById("btnNextG");
-      if(!nextBtn.classList.contains("hidden")) nextBtn.click();
-    }
-  }
-  if(wordPage){
-    if(e.key === "1") document.getElementById("btnKnown").click();
-    if(e.key === "2" && !document.getElementById("btnUnknown").disabled) document.getElementById("btnUnknown").click();
-  }
-});
-
-/* 第一次打开时，给个小提示（每次会话只弹一次） */
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    if(state.wordLevel === 0 && state.wordPos === 0 && state.masteredWords.length === 0){
-      celebrate("欢迎来到英语小站！", "先点卡片翻面看意思，再选「记住了 / 还不熟」🌸", 2200);
-    }
-  }, 500);
+document.getElementById("btnExportData").addEventListener("click", function(){ sfx("click"); openDataModal("export"); });
+document.getElementById("btnImportData").addEventListener("click", function(){ sfx("click"); openDataModal("import"); });
+document.getElementById("btnDataOk").addEventListener("click", handleDataOk);
+document.getElementById("btnDataClose").addEventListener("click", closeDataModal);
+/* 点弹窗外面那层灰也能关掉 */
+document.getElementById("dataModal").addEventListener("click", function(e){
+  if(e.target === this) closeDataModal();
 });
 </script>
 </body>
 </html>
+应用
+编辑
